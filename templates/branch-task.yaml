@@ -1,0 +1,18 @@
+# Когда читать: этап 3 — ведущий заполняет задание ветке; поля — references/branching.md, раздел «Контракт ветки».
+task_id: B2.1             # путь в дереве
+parent_id: B2
+root_goal: ""             # 1–2 строки из брифа: что и зачем
+parent_context: ""        # до 5 строк итога родителя
+objective: ""             # одна цель
+answer_shape: ""          # перечень с полями | факт и дата | за и против
+done_when: ""             # условия достаточности
+scope_in: ""
+scope_out: ""             # чем заняты соседние ветки
+known_items: []           # ключи найденного — повторно не искать
+entity_key: ""            # как опознавать дубли
+start_points: []          # источники, каталоги, шаблоны запросов RU/EN
+source_rules: ""          # шкала, чего избегать, disclosure_constraints
+budget: {soft_calls: 10, hard_calls: 15, max_sources: 50}
+stop_rules: "3 источника без нового; 2 переформулировки без результата"
+return_limit_tokens: 1500
+evidence_path: ""         # branches/<task_id>.md и .jsonl

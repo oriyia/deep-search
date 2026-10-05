@@ -1,0 +1,14 @@
+# Когда читать: этап 3 — ветка заполняет ответ ведущему; поля — references/branching.md, раздел «Контракт ветки».
+task_id: B2.1
+status: done              # done | partial | not_found | budget_exhausted | blocked
+stop_reason: ""           # какое правило «Остановка» сработало
+answer: ""                # до 5 строк
+findings:
+  - {key: "", claim: "", evidence: [ev3, ev7], code: "B2", fresh: "V2"}
+rejected: [{key: "", reason: ""}]
+conflicts: [{claim: "", pro: [], contra: [], note: ""}]
+gaps: []                  # что не найдено и что пробовали
+leads: [{direction: "", why: "", expected_yield: ""}]
+signals: []               # что меняет бриф или соседние ветки
+log_summary: {queries: 0, sources_viewed: 0, new_items_last_round: 0, known_items_hit: ""}
+evidence_path: ""
