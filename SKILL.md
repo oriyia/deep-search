@@ -48,13 +48,17 @@ description: "Поиск по источникам, который выдерж�
 | Данные из API: ПО, хостинги кода, обсуждения, наука, нормативные акты | `references/apis.md`, раздел области |
 | Тема в хранилище устарела | `mode: update`, `references/store.md` |
 | Предметная область с пресетом | `presets/<preset>.md` |
+| Что нового, мониторинг: новинки ИИ, дайджест | `references/watch.md`, `templates/digest.md` |
 | Находка меняет бриф, нужен человек | `references/brief.md`, раздел «Поправки»; `references/branching.md`, раздел «Контрольные точки» |
 
 ## Где что лежит
 
-- Подфайлы этапов — `references/`: brief, branching, sources, verify-merge, store, environment, apis.
-- Пресеты областей — `presets/` (`technology`); подключаются полем брифа `preset`.
-- Шаблоны — `templates/`: brief, branch-task, branch-return, report, topic.
-- Скрипт — `deep_search.py` в папке скилла: `doctor`, `init`, `lint`, `index`, `cost`, `self`.
+- Подфайлы этапов — `references/`: brief, branching, sources, verify-merge, store, environment, apis;
+  сценарий «что нового» — watch.
+- Пресеты областей — `presets/` (`technology`, `ai`); подключаются полем брифа `preset`. Набор лент
+  мониторинга — `presets/ai-feeds.json`.
+- Шаблоны — `templates/`: brief, branch-task, branch-return, report, topic, digest.
+- Скрипт — `deep_search.py` в папке скилла: `doctor`, `init`, `lint`, `index`, `cost`, `self`;
+  `watch` — новое из лент в `watch/` библиотеки; `facts` — сводка о репозитории или пакете.
 - Хранилища — библиотека (путь в `DEEP_SEARCH_LIBRARY`) и `research/` в проекте; прогон —
   `<хранилище>/runs/<ГГГГ-ММ-ДД>-<slug>/`.
