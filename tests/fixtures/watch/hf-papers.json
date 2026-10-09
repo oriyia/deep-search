@@ -1,0 +1,9 @@
+[
+  {"paper": {"id": "2610.01234", "title": "Scaling Agents", "summary": "We study <b>agents</b>.",
+             "upvotes": 120, "publishedAt": "2026-09-20T00:00:00.000Z",
+             "submittedOnDailyAt": "2026-10-06T10:00:00.000Z"},
+   "publishedAt": "2026-10-06T10:00:00.000Z", "title": "Scaling Agents"},
+  {"paper": {"id": "2610.05555", "title": "Low votes paper", "summary": "Few votes.",
+             "upvotes": 3, "submittedOnDailyAt": "2026-10-07T10:00:00.000Z"},
+   "title": "Low votes paper"}
+]

@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-05",
+  "repo": {
+    "name": "github.com/psf/requests"
+  },
+  "score": 8.3,
+  "checks": [
+    {
+      "name": "Code-Review",
+      "score": 9,
+      "reason": "Found 10/11 approved changesets -- score normalized to 9"
+    },
+    {
+      "name": "Maintained",
+      "score": 10,
+      "reason": "13 commit(s) and 4 issue activity found in the last 90 days -- score normalized to 10"
+    }
+  ]
+}

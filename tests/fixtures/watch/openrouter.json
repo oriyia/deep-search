@@ -1,0 +1,15 @@
+{"data": [
+  {"id": "stepfun/step-5-preview", "canonical_slug": "stepfun/step-5-preview-20261008",
+   "name": "StepFun: Step 5 Preview", "created": 1791421200, "description": "Preview model.",
+   "context_length": 262144, "pricing": {"prompt": "0.0000003", "completion": "0.0000012"}},
+  {"id": "stepfun/step-5-preview:free", "canonical_slug": "stepfun/step-5-preview-20261008",
+   "name": "StepFun: Step 5 Preview (free)", "created": 1791417600,
+   "pricing": {"prompt": "0", "completion": "0"}},
+  {"id": "anthropic/claude-haiku-5.5:batch", "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
+   "name": "Anthropic: Claude Haiku 5.5 (batch)", "created": 1791374400},
+  {"id": "anthropic/claude-haiku-5.5", "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
+   "name": "Anthropic: Claude Haiku 5.5", "created": 1791360000, "context_length": 200000,
+   "pricing": {"prompt": "0.000001", "completion": "0.000005"}},
+  {"id": "old/model", "canonical_slug": "old/model", "name": "Old model", "created": 1735689600},
+  {"id": "nodate/model", "name": "No date model"}
+]}

@@ -1,0 +1,19 @@
+{
+  "packageKey": {
+    "system": "NPM",
+    "name": "uv"
+  },
+  "versions": [
+    {
+      "versionKey": {
+        "system": "NPM",
+        "name": "uv",
+        "version": "1.4.0"
+      },
+      "publishedAt": "2022-12-15T15:11:29Z",
+      "isDefault": true,
+      "isDeprecated": true,
+      "deprecatedReason": "Use NodeBuffer.isUtf8() instead, it is faster"
+    }
+  ]
+}

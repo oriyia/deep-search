@@ -131,6 +131,22 @@ class BriefTest(RunCase):
                 out = self.assert_only("brief-enum")
                 self.assertIn(f"{field}: «{value}»", out)
 
+    def test_preset_from_skill_presets(self):
+        # Допустимы пресеты, у которых есть presets/<имя>.md скилла: ai появился вместе с файлом.
+        for preset in ("ai", "technology", "none"):
+            with self.subTest(preset=preset):
+                self.brief({**BRIEF_M, "preset": preset})
+                res = self.lint()
+                self.assertEqual(res.returncode, 0, res.stdout)
+
+    def test_preset_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            skill = Path(tmp)
+            self.assertEqual(deep_search.preset_names(skill), deep_search.BRIEF_ENUMS["preset"])
+            write(skill / "presets/science.md", "Когда читать: наука.\n")
+            write(skill / "presets/science-feeds.json", "{}")
+            self.assertEqual(deep_search.preset_names(skill), ("science", "none"))
+
     def test_enum_ignores_yaml_comment(self):
         self.brief({**BRIEF_M, "stakes": "high  # решение на год"})
         self.assertEqual(self.lint().returncode, 0)

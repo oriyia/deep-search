@@ -1,0 +1,14 @@
+[
+  {"html_url": "https://github.com/acme/agent-kit/releases/tag/v2.1.0", "tag_name": "v2.1.0",
+   "name": "v2.1.0", "draft": false, "prerelease": false,
+   "created_at": "2026-10-07T09:00:00Z", "published_at": "2026-10-07T10:00:00Z",
+   "body": "## What's Changed\n* **MCP** support by @dev in [#12](https://github.com/acme/agent-kit/pull/12)\n* `fast` mode <script>alert(1)</script>"},
+  {"html_url": "https://github.com/acme/agent-kit/releases/tag/v2.2.0-rc1", "tag_name": "v2.2.0-rc1",
+   "name": "Agent-Kit 2.2 RC1", "draft": false, "prerelease": true,
+   "published_at": "2026-10-08T10:00:00Z", "body": ""},
+  {"html_url": "https://github.com/acme/agent-kit/releases/tag/untagged-1", "tag_name": "v3.0.0",
+   "name": "v3.0.0 draft", "draft": true, "published_at": null, "body": "not yet"},
+  {"html_url": "https://github.com/acme/agent-kit/releases/tag/v1.0.0", "tag_name": "v1.0.0",
+   "name": "v1.0.0", "draft": false, "prerelease": false,
+   "published_at": "2026-08-01T10:00:00Z", "body": "old"}
+]

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Newsletter</title>
+    <item>
+      <title>This week: model X</title>
+      <link>https://www.lab.example/news/x</link>
+      <pubDate>Thu, 08 Oct 2026 07:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Issue 9</title>
+      <link>https://letter.example/issue-9</link>
+      <pubDate>Thu, 08 Oct 2026 07:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

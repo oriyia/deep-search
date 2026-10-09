@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from support import (CORE, ISSUE_RE, REFERENCES, deep_search, make_skill, reference_text,
-                     run_script, write)
+from support import (CORE, FEED_SET, ISSUE_RE, REFERENCES, REPO, deep_search, make_skill,
+                     reference_text, run_script, write, write_feed_set)
 
 TAIL_RE = re.compile(r"^… ещё (\d+)$", re.MULTILINE)
 
@@ -141,7 +141,8 @@ class BrokenCopyTest(SkillCase):
     def test_ref_chars(self):
         for name, limit in (("sources.md", deep_search.REF_MAX_CHARS),
                             ("verify-merge.md", deep_search.REF_CHAR_BUDGETS["verify-merge.md"]),
-                            ("store.md", deep_search.REF_CHAR_BUDGETS["store.md"])):
+                            ("store.md", deep_search.REF_CHAR_BUDGETS["store.md"]),
+                            ("watch.md", deep_search.REF_CHAR_BUDGETS["watch.md"])):
             with self.subTest(name=name):
                 self.setUp()
                 text = reference_text(name, REFERENCES[name])
@@ -185,9 +186,79 @@ class BrokenCopyTest(SkillCase):
                         encoding="utf-8")
         self.assert_only("brief-template-chars")
 
+    def test_digest_template_chars(self):
+        path = self.skill / deep_search.DIGEST_TEMPLATE
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text + "д" * (deep_search.DIGEST_TEMPLATE_MAX_CHARS - len(text) + 1),
+                        encoding="utf-8")
+        self.assert_only("digest-template-chars")
+
     def test_core_missing(self):
         (self.skill / "SKILL.md").unlink()
         self.assert_only("core-missing")
+
+
+class FeedSetTest(SkillCase):
+    """Набор лент presets/*-feeds.json: по одной порче — ровно одно нарушение."""
+
+    def setUp(self):
+        super().setUp()
+        self.path = write_feed_set(self.skill)
+
+    def feeds(self, **over) -> list[dict]:
+        """Копия лент набора; over — поля первой ленты (None — убрать поле)."""
+        feeds = [dict(f) for f in FEED_SET["feeds"]]
+        for key, value in over.items():
+            if value is None:
+                feeds[0].pop(key)
+            else:
+                feeds[0][key] = value
+        return feeds
+
+    def assert_one(self, rule: str) -> str:
+        out = self.assert_only(rule)
+        self.assertEqual(len(ISSUE_RE.findall(out)), 1, out)
+        self.assertIn("presets/ai-feeds.json", out)
+        return out
+
+    def test_feed_set_is_clean(self):
+        res = self.run_self()
+        self.assertEqual(res.returncode, 0, res.stdout)
+        self.assertEqual(self.rules(res.stdout), set(), res.stdout)
+
+    def test_skill_itself_is_clean(self):
+        res = run_script("self", home=self.home)
+        self.assertEqual(res.returncode, 0, res.stdout)
+        self.assertIn("нарушений 0, предупреждений 0", res.stdout)
+        self.assertTrue((REPO / deep_search.WATCH_FEEDS).is_file())
+
+    def test_broken_json(self):
+        self.path.write_text('{"version": 1, "feeds": [', encoding="utf-8")
+        self.assertIn("битый JSON", self.assert_one("feeds-json"))
+
+    def test_required_field(self):
+        for key in ("lang", "group", "filter", "url"):
+            with self.subTest(key=key):
+                write_feed_set(self.skill, {**FEED_SET, "feeds": self.feeds(**{key: None})})
+                out = self.assert_one("feeds-json")
+                self.assertIn("лента lab-blog: нет полей", out)
+                self.assertIn("url или params" if key == "url" else key, out)
+
+    def test_unknown_type(self):
+        write_feed_set(self.skill, {**FEED_SET, "feeds": self.feeds(type="atom")})
+        self.assertIn("неизвестный тип «atom»", self.assert_one("feeds-type"))
+
+    def test_duplicate_id(self):
+        feeds = self.feeds()
+        feeds[1]["id"] = "lab-blog"
+        write_feed_set(self.skill, {**FEED_SET, "feeds": feeds})
+        self.assertIn("лента lab-blog: повтор id", self.assert_one("feeds-id"))
+
+    def test_every_feed_set_is_checked(self):
+        write_feed_set(self.skill, {**FEED_SET, "feeds": self.feeds(type="atom")},
+                       name="science-feeds.json")
+        out = self.assert_only("feeds-type")
+        self.assertIn("presets/science-feeds.json", out)
 
 
 class BoundedOutputTest(SkillCase):

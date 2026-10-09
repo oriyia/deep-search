@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Lab</title>
+    <item>
+      <title>Lab launches model X</title>
+      <link>https://lab.example/news/x</link>
+      <pubDate>Wed, 07 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Lab safety report</title>
+      <link>https://lab.example/news/y</link>
+      <pubDate>Tue, 06 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

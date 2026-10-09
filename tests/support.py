@@ -71,6 +71,7 @@ description: {DESCRIPTION}
 | Данные из API | `references/apis.md` |
 | Тема в хранилище устарела | `mode: update`, `references/store.md` |
 | Предметная область с пресетом | `presets/<preset>.md` |
+| Что нового, мониторинг | `references/watch.md`, `templates/digest.md` |
 
 ## Где что лежит
 
@@ -97,6 +98,7 @@ REFERENCES = {
     "apis.md": ["Общее", "Документация библиотек", "ПО: GitHub", "ПО: другие хостинги",
                 "ПО: пакеты и поддержка", "Чужой код", "Обсуждения и опыт", "Справочные факты",
                 "Наука", "Нормативные акты"],
+    "watch.md": ["Где что", "Шаги", "Отбор", "Проверка и код", "Дайджест", "Настройка набора"],
 }
 
 PRESET_HEADINGS = ["Типы вопроса", "Первоисточники", "Источники охвата", "Шаблоны запросов"]
@@ -107,6 +109,21 @@ TEMPLATES = {
     "branch-return.yaml": "task_id:\nstatus:\nsummary:\n",
     "report.md": "# Отчёт\n\n## Ответ\n\n## Источники\n",
     "topic.md": "---\ntopic:\ntitle:\ntldr:\n---\n",
+    "digest.md": "# Что нового в ИИ\n\n## Новые модели\n\n## Стоит полного поиска\n",
+}
+
+# Набор лент скилла по форме спецификации мониторинга (2.2): по ленте на тип с url и с params.
+# make_skill его не кладёт — тесты watch пишут свой набор; кому нужен — write_feed_set.
+FEED_SET = {
+    "version": 1,
+    "checked": "2026-10-09",
+    "interests": {"models": ["model", "модель"], "agents": ["agent", "агент"]},
+    "feeds": [
+        {"id": "lab-blog", "type": "rss", "url": "https://example.org/feed.xml",
+         "group": "labs", "lang": "en", "filter": "always"},
+        {"id": "hn", "type": "hn", "params": {"query": ["LLM"], "min_points": 100},
+         "group": "aggregators", "lang": "en", "filter": "interests", "note": "ловушка"},
+    ],
 }
 
 
@@ -133,6 +150,13 @@ def make_skill(root: Path) -> Path:
     for name, text in TEMPLATES.items():
         write(root / "templates" / name, text)
     return root
+
+
+def write_feed_set(skill: Path, data: dict | None = None,
+                   name: str = "ai-feeds.json") -> Path:
+    path = skill / "presets" / name
+    write(path, json.dumps(FEED_SET if data is None else data, ensure_ascii=False, indent=1))
+    return path
 
 
 def write(path: Path, text: str) -> None:

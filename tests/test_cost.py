@@ -9,7 +9,8 @@ from pathlib import Path
 
 from support import CORE, ISSUE_RE, REPO, deep_search, make_skill, run_script
 
-SCENARIOS = ("quick", "reuse", "brief", "fan-out", "branch", "merge", "save", "resume", "full")
+SCENARIOS = ("quick", "reuse", "brief", "fan-out", "branch", "merge", "save", "resume",
+             "watch-digest", "full")
 ROW_RE = re.compile(r"^(\S+)\s+([\d ]+?)\s{2,}([\d ]+?)\s{2,}\S", re.MULTILINE)
 
 
@@ -49,7 +50,10 @@ class CleanCostTest(CostCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertNotIn("warn: ", res.stdout)
         self.assertIn("предупреждений 0", res.stdout)
-        self.assertEqual(set(parse_rows(res.stdout)), set(SCENARIOS))
+        rows = parse_rows(res.stdout)
+        self.assertEqual(set(rows), set(SCENARIOS))
+        self.assertLessEqual(rows["watch-digest"], deep_search.STAGE_MAX_CHARS)
+        self.assertIn("references/watch.md", res.stdout)
 
     def test_default_dir_is_script_dir(self):
         explicit = self.cost(skill=REPO)
@@ -81,7 +85,8 @@ class BloatedCostTest(CostCase):
         self.bloat("SKILL.md", deep_search.FULL_MAX_CHARS + 1)
         out = self.cost()
         found = self.warned(out)
-        for name in ("quick", "reuse", "brief", "fan-out", "merge", "save", "resume"):
+        for name in ("quick", "reuse", "brief", "fan-out", "merge", "save", "resume",
+                     "watch-digest"):
             self.assertIn((name, "cost-stage"), found)
         self.assertIn(("full", "cost-full"), found)
         # Ветка ядро не читает: её цена от ядра не зависит.
@@ -96,6 +101,19 @@ class BloatedCostTest(CostCase):
         self.assertIn(("merge", "cost-stage"), found)
         self.assertIn(("full", "cost-full"), found)
         self.assertNotIn(("brief", "cost-stage"), found)
+
+    def test_bloated_watch_reference_warns_only_watch_digest(self):
+        self.bloat("references/watch.md", deep_search.STAGE_MAX_CHARS)
+        self.assertEqual(self.warned(self.cost()), {("watch-digest", "cost-stage")})
+
+    def test_missing_watch_files_warn(self):
+        for rel in ("references/watch.md", "templates/digest.md"):
+            with self.subTest(rel=rel):
+                self.setUp()
+                (self.skill / rel).unlink()
+                out = self.cost()
+                self.assertEqual(self.warned(out), {(rel, "cost-missing")})
+                self.assertIn("watch-digest", out)
 
     def test_missing_file_warns_once(self):
         (self.skill / "templates/report.md").unlink()
@@ -130,6 +148,9 @@ class CostFormulaTest(CostCase):
             + deep_search.SAVE_WRITE_CHARS
         self.assertEqual(rows["save"], save)
         self.assertEqual(rows["full"], rows["fan-out"] + rows["merge"] + save - 2 * core)
+        self.assertEqual(rows["watch-digest"],
+                         self.size("SKILL.md", "references/watch.md", deep_search.DIGEST_TEMPLATE)
+                         + deep_search.OUTPUT_MAX_CHARS + deep_search.WATCH_JQ_CHARS)
 
     def test_branch_takes_largest_preset(self):
         (self.skill / "presets/science.md").write_text("Когда читать: наука.\n" + "н" * 9_000,

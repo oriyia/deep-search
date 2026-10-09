@@ -1,0 +1,10 @@
+{"hits": [
+  {"objectID": "45500001", "title": "Lab launches model X", "url": "https://lab.example/news/x",
+   "points": 312, "num_comments": 140, "created_at": "2026-10-07T12:00:00Z",
+   "created_at_i": 1791374400},
+  {"objectID": "45500002", "title": "Ask HN: <b>agents</b> in prod?", "url": null,
+   "points": 80, "num_comments": 50, "created_at_i": 1791471600,
+   "story_text": "<p>How do you run agents?</p>"},
+  {"objectID": "45500003", "title": "Low points", "url": "https://x.example/low",
+   "points": 5, "num_comments": 0, "created_at_i": 1791277200}
+], "nbHits": 3}

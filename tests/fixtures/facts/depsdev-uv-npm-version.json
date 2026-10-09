@@ -1,0 +1,27 @@
+{
+  "versionKey": {
+    "system": "NPM",
+    "name": "uv",
+    "version": "1.4.0"
+  },
+  "licenses": [
+    "MIT"
+  ],
+  "advisoryKeys": [],
+  "relatedProjects": [
+    {
+      "projectKey": {
+        "id": "github.com/micnic/uv"
+      },
+      "relationProvenance": "UNVERIFIED_METADATA",
+      "relationType": "ISSUE_TRACKER"
+    },
+    {
+      "projectKey": {
+        "id": "github.com/micnic/uv"
+      },
+      "relationProvenance": "UNVERIFIED_METADATA",
+      "relationType": "SOURCE_REPO"
+    }
+  ]
+}

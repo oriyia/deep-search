@@ -1,0 +1,41 @@
+{
+  "packageKey": {
+    "system": "PYPI",
+    "name": "requests"
+  },
+  "versions": [
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "requests",
+        "version": "0.10.0"
+      },
+      "publishedAt": "2012-01-22T05:08:17Z",
+      "isDefault": false,
+      "isDeprecated": false,
+      "deprecatedReason": ""
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "requests",
+        "version": "0.10.1"
+      },
+      "publishedAt": "2012-01-23T08:22:52Z",
+      "isDefault": false,
+      "isDeprecated": false,
+      "deprecatedReason": ""
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "requests",
+        "version": "2.34.2"
+      },
+      "publishedAt": "2026-05-14T19:25:26Z",
+      "isDefault": true,
+      "isDeprecated": false,
+      "deprecatedReason": ""
+    }
+  ]
+}

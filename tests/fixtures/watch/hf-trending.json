@@ -1,0 +1,7 @@
+[
+  {"id": "acme/Acme-7B-Instruct", "createdAt": "2026-10-06T08:00:00.000Z", "likes": 321,
+   "trendingScore": 300, "pipeline_tag": "text-generation"},
+  {"id": "big/old-model", "createdAt": "2025-01-10T08:00:00.000Z", "likes": 9000,
+   "trendingScore": 250},
+  {"id": "x/no-date", "likes": 5, "trendingScore": 100}
+]

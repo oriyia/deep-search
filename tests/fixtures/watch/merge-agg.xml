@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Aggregator</title>
+  <entry>
+    <title>Lab launches model X (discussion)</title>
+    <link href="http://lab.example/news/x/?utm_source=agg"/>
+    <id>agg-1</id>
+    <published>2026-10-07T08:00:00Z</published>
+  </entry>
+  <entry>
+    <title>New agent kit speaks MCP</title>
+    <link href="https://blog.other.example/agent-kit"/>
+    <id>agg-2</id>
+    <published>2026-10-08T08:00:00Z</published>
+  </entry>
+  <entry>
+    <title>Weather in Paris</title>
+    <link href="https://news.other.example/weather"/>
+    <id>agg-3</id>
+    <published>2026-10-08T09:00:00Z</published>
+  </entry>
+</feed>

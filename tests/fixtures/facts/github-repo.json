@@ -1,0 +1,11 @@
+{
+  "full_name": "psf/requests",
+  "license": {
+    "key": "apache-2.0",
+    "name": "Apache License 2.0",
+    "spdx_id": "Apache-2.0"
+  },
+  "archived": false,
+  "pushed_at": "2026-09-28T16:55:48Z",
+  "stargazers_count": 54509
+}

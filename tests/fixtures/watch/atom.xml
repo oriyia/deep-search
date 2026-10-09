@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Lab engineering</title>
+  <updated>2026-10-09T11:00:00Z</updated>
+  <id>tag:lab.example,2026:engineering</id>
+  <entry>
+    <title type="html">Agents &amp;lt;i&amp;gt;at scale&amp;lt;/i&amp;gt;</title>
+    <link rel="self" href="https://lab.example/engineering/agents.atom"/>
+    <link rel="alternate" href="https://lab.example/engineering/agents"/>
+    <id>tag:lab.example,2026:agents</id>
+    <published>2026-10-06T08:00:00Z</published>
+    <updated>2026-10-08T08:00:00Z</updated>
+    <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><p>How we run <b>agents</b>.</p></div></content>
+  </entry>
+  <entry>
+    <title>v2.0.0</title>
+    <link href="https://lab.example/releases/v2.0.0"/>
+    <id>tag:lab.example,2026:v2</id>
+    <updated>2026-10-08T15:30:00.123+02:00</updated>
+    <summary>Release notes.</summary>
+  </entry>
+</feed>

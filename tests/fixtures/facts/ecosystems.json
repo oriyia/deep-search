@@ -1,0 +1,10 @@
+{
+  "name": "requests",
+  "ecosystem": "pypi",
+  "downloads": 1186076091,
+  "downloads_period": "last-month",
+  "dependent_packages_count": 32025,
+  "dependent_repos_count": 679836,
+  "latest_release_number": "2.34.2",
+  "repository_url": "https://github.com/psf/requests"
+}

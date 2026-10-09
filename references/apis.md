@@ -33,6 +33,11 @@ curl -sS "https://context7.com/api/v1/websites/fastapi_tiangolo?tokens=2000&topi
 
 ## ПО: GitHub
 
+Сначала `deep_search.py facts`, остальное — для того, чего в нём нет:
+`python3 <папка скилла>/deep_search.py facts OWNER/REPO` одним вызовом даёт лицензию, архив, звёзды,
+последний коммит и выпуск, Scorecard, пакет и его данные. Строка `поле | значение | URL §путь |
+дата` — улика A без пересказа; не ответившие источники — последней строкой.
+
 Без токена — 60 запросов в час, поиск — 10 в минуту (при общем IP исчерпывается быстро, ответ 403
 «rate limit»). Есть токен — `-H "Authorization: Bearer $GITHUB_TOKEN"`.
 
@@ -49,6 +54,9 @@ gh api repos/OWNER/REPO/releases --jq '.[0].tag_name'                # не пр
 
 ## ПО: другие хостинги
 
+Сначала `deep_search.py facts`, остальное — для того, чего в нём нет: цель — ссылка на проект
+GitLab, Codeberg и другого Forgejo или Gitea, Gitee.
+
 Проект не на GitHub — его хостинг первоисточник так же.
 
 ```sh
@@ -64,6 +72,10 @@ curl -sS https://gitee.com/api/v5/repos/openharmony/docs | jq -c '{stargazers_co
 GitFlic отвечает только с токеном — без него сайт проекта и веб-поиск.
 
 ## ПО: пакеты и поддержка
+
+Сначала `deep_search.py facts`, остальное — для того, чего в нём нет: цель — purl
+(`pkg:pypi/requests`, `pkg:npm/react@18.3.1`); версии, лицензии и уязвимости версии, конец
+поддержки, загрузки и зависимые, дистрибутивы.
 
 ```sh
 # deps.dev: версии, лицензии, уязвимости пакета (npm, pypi, go, maven, cargo, nuget)

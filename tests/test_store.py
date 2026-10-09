@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 import unittest
 from pathlib import Path
 
-from support import (CARD, CLAIM_ROWS, CLAIMS_HEAD, INDEX, ISSUE_RE, RUN_ID, SLUG,
-                     SOURCES_HEAD, deep_search, fill, make_store, run_script, skill_text, write)
+from support import (CARD, CLAIM_ROWS, CLAIMS_HEAD, FEED_SET, INDEX, ISSUE_RE, REPO, RUN_ID,
+                     SLUG, SOURCES_HEAD, deep_search, fill, make_store, run_script, skill_text,
+                     write)
 
 
 class StoreCase(unittest.TestCase):
@@ -94,6 +96,13 @@ class InitTest(unittest.TestCase):
         self.assertEqual((store / "sources.md").read_text(encoding="utf-8"), SOURCES_HEAD)
         self.assertIn("raw/", (store / ".gitignore").read_text(encoding="utf-8").splitlines())
         self.assertIn("archive/", (store / ".ignore").read_text(encoding="utf-8").splitlines())
+        watch = store / deep_search.WATCH_DIR
+        self.assertEqual(json.loads((watch / "feeds.json").read_text(encoding="utf-8")),
+                         deep_search.WATCH_FEEDS_STUB)
+        self.assertEqual(deep_search.WATCH_FEEDS_STUB["version"], 1)
+        for name in ("new", "digests"):
+            self.assertTrue((watch / name).is_dir(), name)
+        self.assertFalse((watch / "state.json").exists())
 
     def test_fresh_store_is_clean_and_index_keeps_it(self):
         store = self.base / "lib"
@@ -113,6 +122,49 @@ class InitTest(unittest.TestCase):
         self.assertIn("уже есть", res.stderr)
         self.assertEqual((store / "log.md").read_text(encoding="utf-8"),
                          "## [2026-10-05] verify | x | —\n")
+
+    def snapshot(self, store: Path) -> dict[str, bytes]:
+        return {p.relative_to(store).as_posix(): p.read_bytes()
+                for p in sorted(store.rglob("*")) if p.is_file()}
+
+    def test_existing_store_gets_only_watch(self):
+        # Библиотека старше мониторинга: init досоздаёт watch/ и не трогает остальное.
+        store = make_store(self.base / "old")
+        before = self.snapshot(store)
+        dirs = {p for p in store.rglob("*") if p.is_dir()}
+        res = self.init(store)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("досоздано: feeds.json, new/, digests/", res.stdout)
+        after = self.snapshot(store)
+        self.assertEqual(set(after) - set(before), {"watch/feeds.json"})
+        self.assertEqual({k: after[k] for k in before}, before)
+        self.assertEqual({p for p in store.rglob("*") if p.is_dir()} - dirs,
+                         {store / "watch", store / "watch/new", store / "watch/digests"})
+        res = run_script("lint", "--store", str(store), home=self.base)
+        self.assertEqual(res.returncode, 0, res.stdout)
+
+    def test_existing_watch_is_kept(self):
+        store = self.base / "lib"
+        self.init(store)
+        own = '{"version": 1, "disable": ["hn"]}\n'
+        (store / "watch/feeds.json").write_text(own, encoding="utf-8")
+        (store / "watch/digests").rmdir()
+        res = self.init(store)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("досоздано: digests/", res.stdout)
+        self.assertEqual((store / "watch/feeds.json").read_text(encoding="utf-8"), own)
+        self.assertTrue((store / "watch/digests").is_dir())
+        # Всё на месте — нечего делать, как и раньше у готового хранилища.
+        res = self.init(store)
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("ничего не изменено", res.stderr)
+
+    def test_watch_file_is_call_error(self):
+        store = make_store(self.base / "old")
+        write(store / "watch", "x")
+        res = self.init(store)
+        self.assertEqual(res.returncode, 2)
+        self.assertEqual((store / "watch").read_text(encoding="utf-8"), "x")
 
     def test_project_folder_with_other_files(self):
         # research/ проекта может уже содержать что-то своё и .gitignore: init дописывает.
@@ -328,6 +380,65 @@ class StoreWarningsTest(StoreCase):
         self.assertEqual(self.rules(self.lint().stdout), set())
 
 
+class WatchLintTest(StoreCase):
+    """watch/ библиотеки: lint --store ловит порчу и ничего не переименовывает."""
+
+    def setUp(self):
+        super().setUp()
+        self.watch = self.store / deep_search.WATCH_DIR
+
+    def feeds(self, **data) -> None:
+        write(self.watch / "feeds.json", json.dumps({"version": 1, **data}, ensure_ascii=False))
+
+    def own(self, **over) -> dict:
+        return {**FEED_SET["feeds"][0], "id": "my-feed", **over}
+
+    def test_valid_watch_is_clean(self):
+        self.feeds(add=[self.own()], disable=["no-such"], override={"my-feed": {"trial": True}},
+                   interests={"apps": ["NotebookLM"]})
+        write(self.watch / "state.json", json.dumps({"version": 1, "feeds": {"my-feed": {}}}))
+        res = self.lint()
+        self.assertEqual(res.returncode, 0, res.stdout)
+        self.assertEqual(self.rules(res.stdout), set(), res.stdout)
+
+    def test_broken_feeds_json(self):
+        write(self.watch / "feeds.json", '{"version": 1, "add": [')
+        out = self.assert_only("feeds-json")
+        self.assertIn("watch/feeds.json: feeds-json: битый JSON", out)
+
+    def test_unknown_type(self):
+        self.feeds(add=[self.own(type="atom")])
+        self.assertIn("лента my-feed: неизвестный тип «atom»", self.assert_only("feeds-type"))
+
+    def test_unknown_type_by_override(self):
+        skill_id = json.loads((REPO / deep_search.WATCH_FEEDS).read_text())["feeds"][0]["id"]
+        self.feeds(override={skill_id: {"type": "atom"}})
+        self.assertIn(f"override {skill_id}: неизвестный тип", self.assert_only("feeds-type"))
+
+    def test_duplicate_id(self):
+        self.feeds(add=[self.own(), self.own()])
+        out = self.assert_only("feeds-id")
+        self.assertIn("лента my-feed: повтор id", out)
+        self.assertEqual(len(ISSUE_RE.findall(out)), 1, out)
+
+    def test_duplicate_of_skill_feed(self):
+        skill_id = json.loads((REPO / deep_search.WATCH_FEEDS).read_text())["feeds"][0]["id"]
+        self.feeds(add=[self.own(id=skill_id)])
+        self.assertIn(f"лента {skill_id}: уже есть", self.assert_only("feeds-id"))
+        # Отключённую ленту скилла своя с тем же id заменяет — это не повтор.
+        self.feeds(add=[self.own(id=skill_id)], disable=[skill_id])
+        self.assertEqual(self.lint().returncode, 0)
+
+    def test_broken_state_is_reported_not_renamed(self):
+        for text in ('{"version": 1, "feeds": {', '{"version": 2, "feeds": {}}', "[]"):
+            with self.subTest(text=text):
+                write(self.watch / "state.json", text)
+                out = self.assert_only("watch-state")
+                self.assertIn("watch/state.json", out)
+                self.assertEqual((self.watch / "state.json").read_text(encoding="utf-8"), text)
+                self.assertEqual(sorted(p.name for p in self.watch.iterdir()), ["state.json"])
+
+
 class SkillFormatsTest(unittest.TestCase):
     """Форматы в скрипте совпадают с файлами скилла: правка одной стороны ловится тестом."""
 
@@ -355,9 +466,12 @@ class SkillFormatsTest(unittest.TestCase):
 
     def test_enums_in_brief_reference(self):
         brief = skill_text("references/brief.md")
-        for values in deep_search.BRIEF_ENUMS.values():
+        presets = deep_search.preset_names(REPO)
+        for values in (*deep_search.BRIEF_ENUMS.values(), presets):
             for value in values:
                 self.assertRegex(brief, rf"`{re.escape(value)}`")
+        # Запасной список совпадает с пресетами скилла: скрипт без папки ведёт себя так же.
+        self.assertEqual(set(presets), set(deep_search.BRIEF_ENUMS["preset"]))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,31 @@
+{
+  "versions": [
+    {
+      "versionKey": {
+        "system": "GO",
+        "name": "github.com/ASTRAL-SH/uv",
+        "version": "v0.0.0-20260902175009-5318c9e4b5e7"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "GO_ORIGIN"
+    },
+    {
+      "versionKey": {
+        "system": "GO",
+        "name": "github.com/ASTRAL-SH/uv",
+        "version": "v0.0.0-20260902194104-2b2545c88284"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "GO_ORIGIN"
+    },
+    {
+      "versionKey": {
+        "system": "GO",
+        "name": "github.com/ASTRAL-SH/uv",
+        "version": "v0.0.0-20260904134836-da41811835ad"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "GO_ORIGIN"
+    }
+  ]
+}

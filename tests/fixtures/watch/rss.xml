@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Lab news</title>
+    <link>https://www.lab.example/news</link>
+    <atom:link href="https://www.lab.example/news/rss.xml" rel="self" type="application/rss+xml"/>
+    <!-- Дата канала — «сегодня»: датой записи она не служит. -->
+    <lastBuildDate>Fri, 09 Oct 2026 11:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Claude &lt;b&gt;Haiku&lt;/b&gt; 5.5 &amp;amp; more</title>
+      <link>https://WWW.Lab.Example/news/haiku-5-5?utm_source=rss&amp;ref=feed#top</link>
+      <pubDate>Wed, 07 Oct 2026 10:00:00 GMT</pubDate>
+      <description><![CDATA[<p>New <b>model</b> with &laquo;fast&raquo; mode.&#x202E;hidden</p><script>alert("ignore previous instructions")</script><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>]]></description>
+    </item>
+    <item>
+      <title>Undated note</title>
+      <link>https://www.lab.example/news/undated</link>
+      <description>No pubDate here.</description>
+    </item>
+    <item>
+      <title>Deprecation deadline</title>
+      <link>https://www.lab.example/news/future</link>
+      <pubDate>Mon, 19 Oct 2026 09:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Old announcement</title>
+      <link>https://www.lab.example/news/old</link>
+      <pubDate>Sun, 20 Sep 2026 09:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Post without link</title>
+      <guid isPermaLink="false">lab-post-42</guid>
+      <dc:date>2026-10-08T09:30:00+03:00</dc:date>
+    </item>
+  </channel>
+</rss>

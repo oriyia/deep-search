@@ -1,0 +1,85 @@
+{
+  "versions": [
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "requests",
+        "version": "2.33.0"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "PYPI_PUBLISH_ATTESTATION"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "requests",
+        "version": "2.33.1"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "PYPI_PUBLISH_ATTESTATION"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "requests",
+        "version": "2.34.0"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "PYPI_PUBLISH_ATTESTATION"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "dlorenc-requests",
+        "version": "2.24.0"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "UNVERIFIED_METADATA"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "dlorenc-requests",
+        "version": "2.24.1"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "UNVERIFIED_METADATA"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "dlorenc-requests",
+        "version": "2.24.2"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "UNVERIFIED_METADATA"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "dlorenc-requests",
+        "version": "2.24.3"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "UNVERIFIED_METADATA"
+    },
+    {
+      "versionKey": {
+        "system": "PYPI",
+        "name": "dlorenc-requests",
+        "version": "2.24.4"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "UNVERIFIED_METADATA"
+    },
+    {
+      "versionKey": {
+        "system": "GO",
+        "name": "github.com/PSF/REQUESTS",
+        "version": "v0.10.0"
+      },
+      "relationType": "SOURCE_REPO",
+      "relationProvenance": "GO_ORIGIN"
+    }
+  ]
+}
