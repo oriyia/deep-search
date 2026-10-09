@@ -45,13 +45,14 @@ description: "Поиск по источникам, который выдерж�
 | Контекст сжат или новая сессия по начатому прогону | ядро и `runs/…/plan.md` прогона — больше ничего |
 | Нет субагентов или работает другой агент | `references/environment.md` |
 | Выбрать инструмент, достать текст страницы, PDF, JS-страницу | `references/environment.md` |
+| Данные из API: ПО, хостинги кода, обсуждения, наука, нормативные акты | `references/apis.md`, раздел области |
 | Тема в хранилище устарела | `mode: update`, `references/store.md` |
 | Предметная область с пресетом | `presets/<preset>.md` |
 | Находка меняет бриф, нужен человек | `references/brief.md`, раздел «Поправки»; `references/branching.md`, раздел «Контрольные точки» |
 
 ## Где что лежит
 
-- Подфайлы этапов — `references/`: brief, branching, sources, verify-merge, store, environment.
+- Подфайлы этапов — `references/`: brief, branching, sources, verify-merge, store, environment, apis.
 - Пресеты областей — `presets/` (`technology`); подключаются полем брифа `preset`.
 - Шаблоны — `templates/`: brief, branch-task, branch-return, report, topic.
 - Скрипт — `deep_search.py` в папке скилла: `doctor`, `init`, `lint`, `index`, `cost`, `self`.

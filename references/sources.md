@@ -57,11 +57,12 @@
 
 ## Инструменты
 
-Краткая лестница; команды, ловушки и API — `references/environment.md`.
+Краткая лестница; команды и ловушки — `references/environment.md`, API — `references/apis.md`.
 
 1. **Специализированные источники прежде общего веба:** документация библиотек — context7; ПО —
-   GitHub API и raw, deps.dev, endoflife.date, OSV, ecosyste.ms, Scorecard; наука — OpenAlex, arXiv,
-   Crossref. В журнале — `method: api`.
+   GitHub и другие хостинги, deps.dev, endoflife.date, OSV, ecosyste.ms, Scorecard, Repology; чужой
+   код; обсуждения — Hacker News, Stack Exchange; справочные факты — Wikidata; наука — OpenAlex,
+   arXiv, Crossref, Unpaywall; нормативные акты — pravo.gov.ru. В журнале — `method: api`.
 2. **WebSearch** — обнаружение: заголовки и URL. Сводка поверх выдачи — не источник.
 3. **Текст для фактов и цитат:** curl + pandoc; PDF — `pdftotext`; JS-страница — headless Chromium;
    `r.jina.ai` — только если позволяют `disclosure_constraints`.
@@ -153,7 +154,7 @@ X». Сведения нужны на `as_of_date` брифа, пусто — н
 | benchmarketing: нет конфигурации, версий, данных, кода; одна нагрузка; нет разброса | не выше C |
 | накрученная популярность: звёзды, отзывы | не подтверждение |
 | хищнический журнал, бумажная фабрика | E |
-| отозванная статья (проверка — Crossref, `references/environment.md`) | не использовать |
+| отозванная статья (проверка — Crossref, `references/apis.md`) | не использовать |
 | препринт | метка; B при открытых данных, иначе C |
 | наука в пересказе пресс-релиза | идти к статье |
 | сведения только от вендора; уход сопровождающих; лицензия строже; один основной участник | признак против — в ответ ветки |

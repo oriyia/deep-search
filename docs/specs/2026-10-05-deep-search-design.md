@@ -92,7 +92,10 @@ deep-search/
     verify-merge.md       проверка утверждений, сведение, противоречия, отчёт, самопроверка
     store.md              хранилище: раскладка, форматы, переиспользование, запись
     environment.md        инструменты подробно: текст страницы, PDF, JS, архив; Claude Code
-                          (субагенты, ToolSearch, права); работа без субагентов; doctor
+                          (субагенты, ToolSearch, права); работа без субагентов; отложенное
+    apis.md               API по областям: документация, ПО и хостинги кода, пакеты, чужой
+                          код, обсуждения, справочные факты, наука, нормативные акты; ветка
+                          читает «Общее» и раздел своей области
   presets/
     technology.md         предметная карта ПО (раздел 9)
   templates/
@@ -168,6 +171,7 @@ deep-search/
 | Контекст сжат или новая сессия по начатому прогону | ядро и `runs/…/plan.md` прогона — больше ничего |
 | Нет субагентов или работает другой агент | `references/environment.md` |
 | Выбрать инструмент, достать текст страницы, PDF, JS-страницу | `references/environment.md` |
+| Данные из API: ПО, хостинги кода, обсуждения, наука, нормативные акты | `references/apis.md`, раздел области |
 | Тема в хранилище устарела | `mode: update`, `references/store.md` |
 | Предметная область с пресетом | `presets/<preset>.md` |
 
@@ -471,11 +475,14 @@ evidence_path: ""
 ### 5.3. Лестница инструментов
 
 Краткая лестница — в `references/sources.md` (её читает ветка), подробности — в
-`references/environment.md`. В начале прогона `deep_search.py doctor` проверяет, что доступно, и итог
-пишется в `manifest.json`.
+`references/environment.md`, команды API по областям — в `references/apis.md`; какие источники
+выбраны, почему и что не взяли — `docs/guide.md`, 5.5. В начале прогона `deep_search.py doctor`
+проверяет, что доступно, и итог пишется в `manifest.json`.
 
-1. Специализированные источники прежде общего веба: context7 — документация библиотек; GitHub API и
-   raw, deps.dev, endoflife.date, OSV, ecosyste.ms, Scorecard — ПО; OpenAlex, arXiv, Crossref — наука.
+1. Специализированные источники прежде общего веба: context7 — документация библиотек; GitHub и
+   другие хостинги кода, deps.dev, endoflife.date, OSV, ecosyste.ms, Scorecard, Repology — ПО; поиск
+   по чужому коду; Hacker News и Stack Exchange — обсуждения и опыт; Wikidata — справочные факты;
+   OpenAlex, arXiv, Crossref, Unpaywall — наука; pravo.gov.ru — нормативные акты.
 2. WebSearch — для обнаружения: отдаёт заголовки и URL.
 3. Текст для фактов и цитат: curl + pandoc, `pdftotext`, headless Chromium для JS-страниц;
    `r.jina.ai` — только если позволяют `disclosure_constraints`.
@@ -771,7 +778,9 @@ keywords, а не читать дальше.
 3 935 символов; `brief` 15 850; `fan-out` 34 727; `branch` 36 224; `merge` 29 132; `save` 20 542;
 `full` 76 531 (≈24 тыс. токенов). В сценарии входят и шаблоны этапов, в `branch` — поручение,
 `environment.md` и шаблон ответа. При 4 ветках `full` — 83 531, выше предела 80 000; решение —
-калибровка в тикете 11.
+калибровка в тикете 11. После выноса API в `apis.md` (2026-10-09) `branch` — 37 536: `environment.md`
+плюс четыре раздела `apis.md` для поиска технологий («Общее», «ПО: GitHub», «ПО: пакеты и
+поддержка», «Обсуждения и опыт»).
 
 ### 7.4. Правила
 

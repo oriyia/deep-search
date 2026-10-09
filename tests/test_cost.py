@@ -138,6 +138,22 @@ class CostFormulaTest(CostCase):
         branch = next(s for s in scenarios if s.name == "branch")
         self.assertIn("presets/science.md", [p.label for p in branch.parts])
 
+    def test_branch_reads_only_its_api_sections(self):
+        def branch_chars() -> int:
+            scenarios, _ = deep_search.cost_scenarios(self.skill, 3, 5_000)
+            return sum(p.chars for p in next(s for s in scenarios if s.name == "branch").parts)
+
+        path = self.skill / "references/apis.md"
+        before = branch_chars()
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.replace("## Наука\n\nТекст раздела.",
+                                     "## Наука\n\nТекст раздела." + "н" * 5_000), encoding="utf-8")
+        self.assertEqual(branch_chars(), before)
+        path.write_text(text.replace("## ПО: GitHub\n\nТекст раздела.",
+                                     "## ПО: GitHub\n\nТекст раздела." + "г" * 5_000),
+                        encoding="utf-8")
+        self.assertEqual(branch_chars(), before + 5_000)
+
     def test_no_preset_is_not_a_warning(self):
         (self.skill / "presets/technology.md").unlink()
         self.assertEqual(self.warned(self.cost()), set())

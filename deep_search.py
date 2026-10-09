@@ -226,7 +226,7 @@ DOCTOR_APIS = (
 # который отвечает дольше, ветке всё равно не помощник. Запросы идут параллельно, так что вся
 # проба укладывается примерно в один таймаут.
 DOCTOR_TIMEOUT = 6.0
-# GitHub без токена — 60 запросов в час на IP (environment.md, «API по областям»); при общем IP
+# GitHub без токена — 60 запросов в час на IP (references/apis.md, «ПО: GitHub»); при общем IP
 # лимит съедают соседи, и ветки получат 403 посреди поиска.
 GITHUB_LOW_REMAINING = 10
 
@@ -270,6 +270,9 @@ CARD_READ_CHARS = 4_000
 REUSE_CARDS = 2
 CLAIMS_GREP_CHARS = 4_000
 SAVE_WRITE_CHARS = 8_000
+# Ветка читает references/apis.md не целиком, а «Общее» и раздел своей области. Самая дорогая
+# частая ветка — поиск технологий: GitHub, пакеты и поддержка, обсуждения для запроса-опровержения.
+BRANCH_API_SECTIONS = ("Общее", "ПО: GitHub", "ПО: пакеты и поддержка", "Обсуждения и опыт")
 
 SLUG = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 DATE = r"\d{4}-\d{2}-\d{2}"
@@ -1657,9 +1660,11 @@ def cost_scenarios(skill: Path, branches: int,
     reuse = parts(core, store, fs.estimate("grep INDEX", INDEX_GREP_CHARS),
                   fs.estimate(f"{REUSE_CARDS} карточки частями", REUSE_CARDS * CARD_READ_CHARS),
                   fs.estimate("grep утверждений", CLAIMS_GREP_CHARS))
+    # apis.md ветка читает по разделам своей области; считаются разделы поиска технологий.
+    apis = [fs.section("references/apis.md", head, f"apis «{head}»") for head in BRANCH_API_SECTIONS]
     branch = parts(fs.section("references/branching.md", "Поручение субагенту", "поручение"),
                    fs.estimate("задание", TASK_MAX_CHARS), fs.file("references/sources.md"),
-                   fs.file("presets/*.md"), fs.file("references/environment.md"),
+                   fs.file("presets/*.md"), fs.file("references/environment.md"), *apis,
                    fs.file("templates/branch-return.yaml"))
     scenarios = [
         Scenario("quick", parts(core), "страницы ведущий читает сам — не считаются"),

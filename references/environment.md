@@ -2,10 +2,11 @@
 
 # Среда и инструменты
 
-Содержание: Текст страницы · PDF · JS-страницы · Архив и мёртвые ссылки · API по областям ·
-Claude Code · Другие агенты.
+Содержание: Текст страницы · PDF · JS-страницы · Архив и мёртвые ссылки · Claude Code ·
+Другие агенты · Отложенное.
 
-Порядок ступеней — `references/sources.md`, раздел «Инструменты»; здесь — как ими пользоваться.
+Порядок ступеней — `references/sources.md`, раздел «Инструменты»; здесь — как ими пользоваться;
+API по областям — `references/apis.md`.
 Примеры выполнены 2026-10-05; где не так — сказано почему. `OWNER/REPO`, `URL`, `DOI` — подставить.
 Всё, что уходит во внешний сервис, сверять с `disclosure_constraints`.
 
@@ -75,72 +76,12 @@ curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://web.archive.o
 
 - Снимков нет и адрес не встречается в других источниках — ссылка, вероятно, выдумана: не
   использовать, в журнал — «не найдено».
-- `https://archive.org/wayback/available?url=…` при проверке отвечал 429 — брать CDX.
+- `https://archive.org/wayback/available?url=…` при проверке отвечал 429 — брать CDX. CDX тоже
+  бывает недоступен (таймаут, 503): повторить через минуту.
+- Сохранение (`/save/`) без ключа archive.org 2026-10-09 отвечало 429 — тогда `capture` без архивного
+  URL, только sha256 текста.
 - Пакетная проверка ссылок отчёта: `lychee --no-progress --format compact report.md`; домены
   example.* lychee пропускает.
-
-## API по областям
-
-Специализированный источник прежде общего веба. Ответы — JSON, отбирать `jq`, а не читать целиком.
-
-**Документация библиотек — context7.** Есть MCP context7 — сначала `resolve-library-id`, затем
-`query-docs` с id и темой. Без MCP — HTTP, без ключа:
-
-```sh
-curl -sS "https://context7.com/api/v1/search?query=fastapi" | jq -r '.results[:3][]|"\(.id) \(.title)"'
-curl -sS "https://context7.com/api/v1/websites/fastapi_tiangolo?tokens=2000&topic=dependencies"
-```
-
-Фрагменты context7 — указатель; цитата для A — по странице из строки `Source:` фрагмента.
-
-**ПО — GitHub.** Без токена — 60 запросов в час, поиск — 10 в минуту (при общем IP исчерпывается
-быстро, ответ 403 «rate limit»). Есть токен — `-H "Authorization: Bearer $GITHUB_TOKEN"`.
-
-```sh
-curl -sS https://api.github.com/repos/OWNER/REPO | jq -c '{license:.license.spdx_id,pushed_at,archived}'
-curl -sS https://api.github.com/repos/OWNER/REPO/releases/latest | jq -c '{tag_name,published_at}'
-curl -sS "https://api.github.com/search/repositories?q=topic:log-management&sort=stars&per_page=5" \
-  | jq -r '.items[]|"\(.full_name) \(.stargazers_count)"'
-curl -sS https://raw.githubusercontent.com/OWNER/REPO/HEAD/LICENSE   # имя файла бывает LICENSE.txt, COPYING
-gh api repos/OWNER/REPO/releases --jq '.[0].tag_name'                # не проверено
-```
-
-`license.spdx_id` = `NOASSERTION` — лицензия нестандартная: читать сам файл.
-
-**ПО — пакеты, сроки поддержки, уязвимости, здоровье проекта.**
-
-```sh
-# deps.dev: версии, лицензии, уязвимости пакета (npm, pypi, go, maven, cargo, nuget)
-curl -sS https://api.deps.dev/v3/systems/pypi/packages/requests/versions/2.32.3 | jq -c '{licenses,advisoryKeys}'
-# endoflife.date: циклы выпуска и конец поддержки
-curl -sS https://endoflife.date/api/v1/products/postgresql/ | jq -c '.result.releases[:3][]|{name,eolFrom,latest:.latest.name}'
-# OSV: уязвимости версии пакета
-curl -sS -X POST https://api.osv.dev/v1/query \
-  -d '{"package":{"name":"jinja2","ecosystem":"PyPI"},"version":"2.4.1"}' | jq -r '.vulns[]?.id'
-# ecosyste.ms: загрузки и зависимые
-curl -sS https://packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/react \
-  | jq -c '{latest_release_number,downloads,dependent_repos_count}'
-# OpenSSF Scorecard: сопровождение, ревью кода
-curl -sS https://api.securityscorecards.dev/projects/github.com/OWNER/REPO | jq -c '{date,score}'
-```
-
-«Нет в базе уязвимостей» не значит «уязвимостей нет»: базы обогащаются с задержкой.
-
-**Наука — OpenAlex, arXiv, Crossref.**
-
-```sh
-# OpenAlex: фильтр по заглавию точнее, чем search= (тот при проверке подмешал чужую тему)
-curl -sS "https://api.openalex.org/works?filter=title.search:retrieval%20augmented%20generation,from_publication_date:2024-01-01&sort=cited_by_count:desc&per-page=5&select=doi,display_name,publication_year,cited_by_count" | jq -c '.results[]'
-# arXiv: Atom XML; не чаще одного запроса в 3 секунды
-curl -sS "https://export.arxiv.org/api/query?search_query=ti:%22retrieval%20augmented%22&sortBy=submittedDate&max_results=5"
-# Crossref: метаданные DOI; mailto — адрес того, кто запускает
-curl -sS "https://api.crossref.org/works/DOI?mailto=you@example.org" | jq -c '.message|{title:.title[0],type}'
-# отозвана ли статья: уведомления, которые обновляют этот DOI
-curl -sS "https://api.crossref.org/works?filter=updates:DOI&mailto=you@example.org" \
-  | jq -c '.message.items[]|{DOI,type:.["update-to"][0].type}'
-```
-
-Тип `retraction` в ответе — статья отозвана, не использовать.
 
 ## Claude Code
 
@@ -171,6 +112,19 @@ curl -sS "https://api.crossref.org/works?filter=updates:DOI&mailto=you@example.o
   учётной записи.
 - **Gemini CLI.** `google_web_search` и `web_fetch` отдают сводку с источниками, а не текст — цифры
   и цитаты брать curl. Не проверено.
-- **Нет встроенного поиска.** Обнаружение — через API раздела «API по областям» и самостоятельный
+- **Нет встроенного поиска.** Обнаружение — через API из `references/apis.md` и самостоятельный
   метапоиск SearXNG: `curl -sS "http://localhost:8080/search?q=QUERY&format=json"` (JSON-вывод
   включается в его настройках). Не проверено.
+
+## Отложенное
+
+Не подключено по умолчанию; подключается, когда выполнено условие. Инструмент — в `source` журнала,
+причина замены — в `note`.
+
+- **Поисковые API с ключом** — Exa, Tavily, Brave Search, Parallel, Linkup, Kagi. Задан ключ или
+  подключён MCP, и `disclosure_constraints` разрешают отдавать запросы наружу, — годятся для
+  обнаружения вместо WebSearch или вместе с ним. Их фрагменты и сводки — как WebFetch: только
+  сортировка; число и цитата — по тексту страницы.
+- **Firecrawl** — с ключом вместо Jina Reader, на тех же условиях.
+- **SearXNG** — нет встроенного поиска, исчерпан предел WebSearch или WebSearch не находит
+  `known_items`: раздел «Другие агенты», «Нет встроенного поиска».
