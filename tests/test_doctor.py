@@ -138,10 +138,12 @@ class DoctorParseTest(unittest.TestCase):
         self.path = str(fake_bin(Path(tmp.name) / "bin", "curl", "pandoc", "pdftotext",
                                  "chromium-browser"))
         self.calls: list[tuple[str, bool]] = []
+        self.tokens: dict[str, str] = {}
 
     def fetcher(self, answers: dict[str, deep_search.Probe]):
-        def fetch(method, url, data, proxy, want_body):
+        def fetch(method, url, data, proxy, want_body, token=""):
             self.calls.append((url, proxy))
+            self.tokens[url] = token
             for part, probe in answers.items():
                 if part in url:
                     return probe
@@ -166,6 +168,15 @@ class DoctorParseTest(unittest.TestCase):
         self.assertTrue(all(proxy for url, proxy in by_url.items() if "search?q=" not in url))
         self.assertFalse(next(p for u, p in by_url.items() if "search?q=" in u))
         self.assertEqual(len(self.calls), len(deep_search.DOCTOR_APIS) + 1)
+
+    def test_github_token_only_to_github(self):
+        secret = "github_pat_SECRET123"
+        env, _, text = self.run_doctor(GITHUB_TOKEN=secret)
+        self.assertEqual([u for u, tok in self.tokens.items() if tok], [
+            next(u for u in self.tokens if "api.github.com" in u)])
+        self.assertEqual(self.tokens[next(u for u in self.tokens if "api.github.com" in u)], secret)
+        self.assertNotIn(secret, text)
+        self.assertNotIn(secret, json.dumps(env))
 
     def test_github_rate_low(self):
         rate = json.dumps({"resources": {"core": {"limit": 60, "remaining": 3}}}).encode()

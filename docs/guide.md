@@ -549,8 +549,8 @@ E (потолок 4).
 
 Хранилищ два, устроены они одинаково:
 
-- **библиотека** — общий git-репозиторий для всех проектов, `~/my/code/research-library` (путь —
-  переменная `DEEP_SEARCH_LIBRARY`). Найденное в одном проекте пригождается в другом;
+- **библиотека** — общий git-репозиторий для всех проектов; путь — переменная
+  `DEEP_SEARCH_LIBRARY` (например, `~/research-library`). Найденное в одном проекте пригождается в другом;
 - **папка `research/` в проекте** — для того, что относится только к проекту или не должно его
   покидать.
 
@@ -737,15 +737,45 @@ deep-search/
 
 ### 10.1. Установка
 
-Подробные команды появятся в README после тикета 10 плана. Суть:
+Те же команды, что в README, раздел «Установка».
 
-1. Скилл подключается ссылкой из папки скиллов агентов (`~/.agents/skills/deep-search` и
-   `~/.claude/skills/deep-search`) на репозиторий — правки в репозитории сразу действуют.
-2. Создаётся библиотека: `python3 deep_search.py init ~/my/code/research-library`, в ней —
-   git-репозиторий.
-3. Задаётся переменная `DEEP_SEARCH_LIBRARY` с путём библиотеки, а агенту Claude Code
-   открывается к ней доступ (`additionalDirectories` в настройках).
-4. По желанию — разрешения на веб-инструменты без подтверждения каждого вызова.
+```bash
+# 1. скилл: рабочая копия и ссылки из папок скиллов агентов — правка в репозитории действует сразу
+git clone <url> <рабочая копия>
+ln -s <рабочая копия> ~/.agents/skills/deep-search
+ln -s ../../.agents/skills/deep-search ~/.claude/skills/deep-search
+
+# 2. библиотека — общее хранилище найденного, отдельный git-репозиторий
+python3 ~/.agents/skills/deep-search/deep_search.py init ~/research-library
+git -C ~/research-library init -b main
+
+# 3. путь библиотеки — в профиль оболочки (~/.zshrc или ~/.bashrc)
+export DEEP_SEARCH_LIBRARY="$HOME/research-library"
+
+# 4. по желанию — токен GitHub: 5 000 запросов к API в час вместо 60
+#    (fine-grained, доступ «Public repositories (read-only)», без других прав)
+export GITHUB_TOKEN=<токен>
+```
+
+В настройках Claude Code (`~/.claude/settings.json`) — путь библиотеки для агента, доступ к её
+папке и веб-инструменты без подтверждения каждого вызова (фоновые ветки иначе встают на вопросе):
+
+```json
+{
+  "env": {"DEEP_SEARCH_LIBRARY": "/home/<пользователь>/research-library"},
+  "permissions": {
+    "additionalDirectories": ["/home/<пользователь>/research-library"],
+    "allow": ["WebSearch", "WebFetch", "Bash(curl:*)"]
+  }
+}
+```
+
+Проверка — в новой сессии агента `deep-search` есть в списке скиллов, а обе команды дают код 0:
+
+```bash
+python3 ~/.agents/skills/deep-search/deep_search.py doctor
+python3 ~/.agents/skills/deep-search/deep_search.py lint --store "$DEEP_SEARCH_LIBRARY"
+```
 
 ### 10.2. Первый поиск
 

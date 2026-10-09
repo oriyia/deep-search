@@ -1300,7 +1300,7 @@ class Probe:
 
 # fetch(метод, адрес, тело, через прокси ли, нужно ли тело) — подменяется в тестах, чтобы
 # проба не ходила в сеть.
-Fetch = Callable[[str, str, bytes | None, bool, bool], Probe]
+Fetch = Callable[[str, str, bytes | None, bool, bool, str], Probe]
 
 
 def fetch_error(exc: BaseException) -> str:
@@ -1317,10 +1317,16 @@ def fetch_error(exc: BaseException) -> str:
     return "нет соединения"
 
 
-def http_fetch(method: str, url: str, data: bytes | None, proxy: bool, want_body: bool) -> Probe:
-    """Один запрос с DOCTOR_TIMEOUT. proxy=False — мимо прокси, как `curl --noproxy`."""
+def http_fetch(method: str, url: str, data: bytes | None, proxy: bool, want_body: bool,
+               token: str = "") -> Probe:
+    """Один запрос с DOCTOR_TIMEOUT. proxy=False — мимо прокси, как `curl --noproxy`.
+
+    token — Bearer-токен: с ним /rate_limit GitHub показывает лимит токена, а не IP.
+    """
     opener = urllib.request.build_opener(*([] if proxy else [urllib.request.ProxyHandler({})]))
     headers = {"User-Agent": "deep-search-doctor"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     if data is not None:
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, method=method, headers=headers)
@@ -1369,11 +1375,13 @@ def probe_env(environ: Mapping[str, str], fetch: Fetch, today: date) -> tuple[di
                 for name, binaries in DOCTOR_COMMANDS}
 
     searx = (environ.get(SEARXNG_URL_VAR) or SEARXNG_DEFAULT_URL).rstrip("/")
-    jobs = [(key, method, url, data, True, key == "github")
+    github_token = environ.get("GITHUB_TOKEN") or environ.get("GH_TOKEN") or ""
+    jobs = [(key, method, url, data, True, key == "github",
+             github_token if key == "github" else "")
             for key, _, method, url, data in DOCTOR_APIS]
     # Локальный сервис — мимо прокси: так его и надо вызывать (environment.md, «Claude Code»).
     jobs.append(("searxng", "GET", f"{searx}/search?q=deep-search&format=json", None, False,
-                 False))
+                 False, ""))
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         probes = dict(zip((j[0] for j in jobs), pool.map(lambda j: fetch(*j[1:]), jobs)))
 
