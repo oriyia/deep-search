@@ -12,7 +12,7 @@ known_items: []           # ключи найденного — повторно
 entity_key: ""            # как опознавать дубли
 start_points: []          # источники, каталоги, шаблоны запросов RU/EN
 source_rules: ""          # шкала, чего избегать, disclosure_constraints
-budget: {soft_calls: 10, hard_calls: 15, max_sources: 50}
+budget: {soft_calls: 10, hard_calls: 15, max_sources: 50, batch_calls: 0}  # batch_calls — пакеты скрипта
 stop_rules: "3 источника без нового; 2 переформулировки без результата"
 return_limit_tokens: 1500
 evidence_path: ""         # branches/<task_id>.md и .jsonl

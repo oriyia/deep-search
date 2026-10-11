@@ -164,13 +164,13 @@ def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def run_script(*args: str, home: Path) -> subprocess.CompletedProcess:
+def run_script(*args: str, home: Path, cwd: Path | None = None) -> subprocess.CompletedProcess:
     """Скрипт с отдельным HOME: настройки и файлы пользователя в тест не попадают."""
     env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
     env.pop("DEEP_SEARCH_LIBRARY", None)
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
-        env=env, capture_output=True, text=True, encoding="utf-8", timeout=30,
+        env=env, capture_output=True, text=True, encoding="utf-8", timeout=30, cwd=cwd,
     )
 
 

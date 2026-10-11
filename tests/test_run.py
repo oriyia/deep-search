@@ -169,6 +169,11 @@ class BriefTest(RunCase):
                 self.brief(values)
                 self.assert_only("brief-id")
 
+    def test_relative_run_path(self):
+        # Из папки прогона: у «.» нет имени, а id брифа сверяется с именем папки.
+        res = run_script("lint", "--run", ".", home=self.home, cwd=self.run_dir)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
     def test_id_suffix_matches_topic(self):
         run = self.run_dir.parent / f"{RUN_ID}-2"
         self.run_dir.rename(run)
@@ -263,6 +268,23 @@ class JournalTest(RunCase):
                 self.setUp()
                 self.append(journal_line(**over))
                 self.assertIn(word, self.assert_only("log-fields"))
+
+    def test_batch_needs_count(self):
+        self.append(journal_line(method="batch"))
+        self.assertIn("count", self.assert_only("log-fields"))
+
+    def test_log_undercount(self):
+        # Ответ насчитал 30 открытых источников, а в журнале их нет: бюджет по журналу занижен.
+        rel = f"branches/{TASK_ID}.return.yaml"
+        self.edit(rel, "sources_viewed: 0", "sources_viewed: 30")
+        res = self.lint()
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(self.rules(res.stdout), {"log-undercount"}, res.stdout)
+        # Пакет скрипта — одна строка, но count обращений.
+        self.append(journal_line(method="batch", query="t.me/s 12 каналов × 3 страницы",
+                                 count=30))
+        res = self.lint()
+        self.assertEqual(self.rules(res.stdout), set(), res.stdout)
 
     def test_capture_is_optional_extra(self):
         self.append(journal_line(capture={"archive": "https://web.archive.org/x",

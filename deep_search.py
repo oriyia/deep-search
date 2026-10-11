@@ -158,18 +158,19 @@ KNOWN_ITEMS_MIN = 2
 FROM_M_TIERS = ("M", "L", "XL")
 
 # Контракт ветки (спецификация, 4.5; templates/branch-return.yaml). Ответы всех веток ведущий
-# читает в свой контекст: 5 000 символов ≈ 1,5 тыс. токенов на ветку. Задание — до 2 000:
-# субагент получает его целиком вместе с поручением.
+# читает в свой контекст: 5 000 символов ≈ 1,5 тыс. токенов на ветку. Задание — до 2 500:
+# субагент получает его целиком вместе с поручением; в 2 000 задание ветки с перечнем
+# известного и пояснениями к бюджету ужималось в несколько проходов.
 RETURN_KEYS = ("task_id", "status", "stop_reason", "answer", "findings", "rejected", "conflicts",
                "gaps", "leads", "signals", "log_summary", "evidence_path")
 RETURN_STATUSES = ("done", "partial", "not_found", "budget_exhausted", "blocked")
 RETURN_MAX_CHARS = 5_000
-TASK_MAX_CHARS = 2_000
+TASK_MAX_CHARS = 2_500
 
 # Журнал ветки (спецификация, 5.7): `capture` — только у ключевых страниц, поэтому не обязателен.
 LOG_KEYS = ("ts", "branch", "method", "source", "query", "filters", "shown", "screened", "kept",
             "dupes", "note")
-LOG_METHODS = ("query", "browse", "citation", "api")
+LOG_METHODS = ("query", "browse", "citation", "api", "batch")
 LOG_COUNTS = ("shown", "screened", "dupes")
 
 # Хранилище (спецификация, 6.2–6.6; references/store.md). Бюджеты — против свалки: INDEX
@@ -1030,7 +1031,17 @@ def journal_problems(entry: dict, branch: str) -> list[str]:
         problems.append("не числа: " + ", ".join(bad))
     if "kept" in entry and not isinstance(entry["kept"], list):
         problems.append("kept — не список")
+    if entry.get("method") == "batch" and not journal_count(entry):
+        problems.append("у batch нет count — числа запросов пакета")
     return problems
+
+
+def journal_count(entry: dict) -> int:
+    """Обращений наружу в строке: у пакета скрипта — его `count`, у остальных — одно."""
+    if entry.get("method") != "batch":
+        return 1
+    count = entry.get("count")
+    return count if isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
 
 
 def check_journal(path: Path, label: str) -> list[Issue]:
@@ -1079,7 +1090,46 @@ def check_run(run: Path) -> list[Issue]:
         issues += check_return(path, label(path))
     for path in sorted(branches.glob("*.jsonl")):
         issues += check_journal(path, label(path))
+    for path in sorted(branches.glob("*.return.yaml")):
+        issues += check_log_summary(path, branches, label(path))
     return issues
+
+
+LOG_SUMMARY_RE = re.compile(r"^log_summary:.*?\bqueries:\s*(\d+).*?\bsources_viewed:\s*(\d+)", re.M)
+
+
+def check_log_summary(path: Path, branches: Path, label: str) -> list[Issue]:
+    """Ответ ветки насчитал больше обращений, чем записано в журнале.
+
+    Бюджет ведущий считает по журналу; ветка, которая пишет журнал не на каждое обращение,
+    занижает расход, и прогон незаметно выходит за бюджет.
+    """
+    m = LOG_SUMMARY_RE.search(read(path))
+    journal = branches / (path.name[: -len(".return.yaml")] + ".jsonl")
+    if m is None or not journal.is_file():
+        return []
+    entries = []
+    for line in read(journal).splitlines():
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(entry, dict):
+            entries.append(entry)
+    queries = sum(1 for e in entries if e.get("method") == "query")
+    calls = sum(journal_count(e) for e in entries)
+    said_queries, said_viewed = int(m.group(1)), int(m.group(2))
+    gaps = []
+    if said_queries > queries:
+        gaps.append(f"запросов {said_queries}, а строк query {queries}")
+    if said_queries + said_viewed > calls:
+        gaps.append(f"запросов и источников {said_queries + said_viewed}, а обращений в журнале "
+                    f"{calls}")
+    if not gaps:
+        return []
+    return [Issue(label, "log-undercount",
+                  "в log_summary " + "; ".join(gaps) + " — журнал пишется на каждое обращение "
+                  "(references/sources.md, «Журнал и улики»)", warn=True)]
 
 
 # --- lint --store: хранилище ----------------------------------------------------------------
@@ -1603,7 +1653,10 @@ def check_subjects(run: Path, store: Path, also: list[Path], today: date | None 
 
 
 def run_lint(run: Path | None, store: Path | None, also: list[Path] | None = None) -> int:
-    also = also or []
+    # Имя папки прогона сверяется с id брифа: у «.» имени нет, поэтому путь — абсолютный.
+    run = run.resolve() if run is not None else None
+    store = store.resolve() if store is not None else None
+    also = [path.resolve() for path in also or []]
     if run is None and store is None:
         print("lint: нужен --run <папка прогона> и/или --store <хранилище>", file=sys.stderr)
         return 2

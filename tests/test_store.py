@@ -411,7 +411,9 @@ class CardConsistencyTest(StoreCase):
         self.answer("- С версии 3 проект X под AGPL (C-log-search-003).\n\n"
                     "Проект X лучше всех.\n\n### Подробнее\n\n| a | b |\n|---|---|")
         out = self.assert_only("card-answer-ref", code=0)
-        self.assertIn("строки 24", out)
+        # Номер строки — по карточке: комментарии шаблона над выводом меняют его.
+        lines = (self.store / f"topics/{SLUG}.md").read_text(encoding="utf-8").splitlines()
+        self.assertIn(f"строки {lines.index('Проект X лучше всех.') + 1}", out)
 
     def test_refs_in_comments_are_ignored(self):
         self.answer("<!-- раньше было C-log-search-001 -->")
