@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 
-from support import deep_search, make_skill, run_script, write
+from support import CARD, deep_search, fill, make_skill, run_script, skill_text, write
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "watch"
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
@@ -509,6 +509,43 @@ class FailureTest(WatchCase):
         self.assertEqual(set(self.state()), {"lab", "down"})
         self.assertIn("state.json битый — переименован", deep_search.watch_text(run))
         self.assertEqual(len(run.records), 2)
+
+
+class TopicsTest(WatchCase):
+    """Новость о предмете темы библиотеки помечена темой и проходит фильтр интересов."""
+
+    URL = "https://news.example/rss.xml"
+
+    def setUp(self):
+        super().setUp()
+        self.set_feeds([feed("news", self.URL, group="newsletters", filt="interests")])
+
+    def topic(self, slug: str, aliases: str, objects: list[str], status: str = "live") -> None:
+        values = {**CARD, "topic": slug, "aliases": aliases, "status": status}
+        rows = "".join(f"| {name} | система | — | live |\n" for name in objects)
+        text = fill(skill_text("templates/topic.md"), values)
+        text = text.replace("|---|---|---|---|\n", "|---|---|---|---|\n" + rows, 1)
+        write(self.library / f"topics/{slug}.md", text)
+
+    def test_topic_marks_and_passes_filter(self):
+        self.topic("vector-db", "векторные базы, vector database", ["Qdrant", "Go"])
+        self.topic("old-db", "Weaviate", [], status="archived")
+        run = self.run_watch(FakeNet({self.URL: rss([
+            ("Qdrant 2.0 released", "https://news.example/1", NOW),
+            ("Why every vector database is slow", "https://news.example/2", NOW),
+            ("Qdrantish fork, Go 1.30 and Weaviate", "https://news.example/3", NOW),
+            ("Weather today", "https://news.example/4", NOW)])}))
+        by_key = {r["key"]: r for r in run.records}
+        self.assertEqual(sorted(by_key), ["https://news.example/1", "https://news.example/2"])
+        self.assertEqual(by_key["https://news.example/1"]["topics"], ["vector-db"])
+        self.assertEqual(by_key["https://news.example/2"]["interests"], [])
+        self.assertIn("тема: vector-db", deep_search.watch_text(run))
+
+    def test_no_topics_is_empty_list(self):
+        self.set_feeds([feed("news", self.URL)])
+        run = self.run_watch(FakeNet({self.URL: rss([("Anything", "https://news.example/1",
+                                                      NOW)])}))
+        self.assertEqual(run.records[0]["topics"], [])
 
 
 class FilesTest(WatchCase):

@@ -303,7 +303,10 @@ FEED_MATCH_KEYS = ("path", "title", "exclude")
 # Строка `new/<дата>.jsonl` — только эти поля: содержимое лент — данные, а не инструкции, и в
 # файл попадает лишь то, что нужно агенту для отбора (спецификация мониторинга, 3.6).
 RECORD_FIELDS = ("key", "title", "url", "date", "date_kind", "group", "feeds", "first_feed",
-                 "interests", "excerpt", "trial")
+                 "interests", "topics", "excerpt", "trial")
+# `topics` — темы библиотеки, чьё имя объекта или другое название встретилось в новости
+# целым словом. Имя короче трёх символов («Go», «R») ловит чужие слова и не сверяется.
+TOPIC_NAME_MIN_CHARS = 3
 
 # Окно: первый запуск — неделя; дальше — от прошлого удачного опроса с перекрытием в сутки,
 # чтобы запись с задержкой публикации не выпала (повтор отсекает `seen`). Дата дальше суток в
@@ -469,6 +472,9 @@ SOURCE_ID_RE = re.compile(r"S-[0-9a-f]{8}")
 SOURCE_REF_RE = re.compile(r"(S-[0-9a-f]{8})(?:\s+§\s*\S.*)?")
 FRESH_RE = re.compile(rf"V0|V[1-3]→({DATE})")
 CLAIM_STATUS_RE = re.compile(rf"live|stale|retracted|superseded→(C-{SLUG}-\d{{3}})")
+# id утверждения в тексте карточки: slug жадный, но отдаёт номер — C-log-search-001 целиком.
+CLAIM_REF_RE = re.compile(rf"(?<![\w-])C-{SLUG}-\d{{3}}(?!\d)")
+HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 LOG_HEAD_RE = re.compile(
     rf"## \[({DATE})\] ({'|'.join(LOG_KINDS)}) \| ({SLUG}) \| ({DATE}-{SLUG}|{NO_VALUE})")
 
@@ -1088,6 +1094,14 @@ class Claim:
     # Строка с неверным числом столбцов: поля не разобраны, и правила, которые на них
     # опираются, её пропускают — иначе одна ошибка формата дала бы каскад нарушений.
     parsed: bool = True
+    subject: str = ""
+    checked: date | None = None
+
+    @property
+    def key(self) -> str:
+        """`предмет` для сверки между утверждениями и темами: без учёта регистра и пробелов."""
+        key = " ".join(self.subject.split()).casefold()
+        return "" if key == NO_VALUE else key
 
 
 @dataclass
@@ -1159,7 +1173,7 @@ def check_index(store: Path, cards: list[Card]) -> list[Issue]:
     return issues
 
 
-def check_card(card: Card, claims: list[Claim] | None) -> list[Issue]:
+def check_card(card: Card, claims: list[Claim] | None, today: date) -> list[Issue]:
     rel = f"topics/{card.path.name}"
     text = read(card.path)
     issues: list[Issue] = []
@@ -1211,6 +1225,86 @@ def check_card(card: Card, claims: list[Claim] | None) -> list[Issue]:
         expected = min(dates).isoformat() if dates else NO_VALUE
         if expires != expected:
             bad(f"expires «{expires}», а по живым утверждениям — «{expected}»")
+
+    # Живых непросроченных утверждений нет — status: stale (references/store.md, «Запись»).
+    # Нет живых совсем — ошибка; все просрочены — предупреждение: это наступает со временем,
+    # а не от правки.
+    if claims and all(c.parsed for c in claims) and status in ("live", "stale"):
+        fresh = [c for c in live if c.fresh is None or c.fresh >= today]
+        if status == "live" and not live:
+            issues.append(Issue(rel, "card-status",
+                                "status: live, а живых утверждений нет — status: stale"))
+        elif status == "live" and not fresh:
+            issues.append(Issue(rel, "card-status",
+                                "status: live, а все живые утверждения просрочены — перепроверить "
+                                "или status: stale", warn=True))
+        elif status == "stale" and fresh:
+            issues.append(Issue(rel, "card-status",
+                                f"status: stale, а живых непросроченных {len(fresh)} — после "
+                                "перепроверки вернуть status: live", warn=True))
+    return issues
+
+
+def card_lines(text: str) -> list[str]:
+    """Строки карточки без frontmatter и комментариев `<!-- -->`; номера строк сохраняются."""
+    text = HTML_COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+    lines = text.splitlines()
+    if lines and lines[0].strip() == "---":
+        end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), 0)
+        lines[:end + 1] = [""] * (end + 1)
+    return lines
+
+
+def answer_blocks(lines: list[str], start: int, stop: int) -> list[tuple[int, str]]:
+    """Выводы раздела «Ответ на …»: пункт списка или абзац с продолжением — (строка, текст)."""
+    blocks: list[tuple[int, list[str]]] = []
+    for i in range(start + 1, stop):
+        line = lines[i]
+        if not line.strip() or line.startswith(("|", "#")):
+            blocks.append((i, []))
+            continue
+        item = re.match(r"\s*(?:[-*+]|\d+[.)])\s", line) is not None
+        if item or not blocks or not blocks[-1][1]:
+            blocks.append((i, [line]))
+        else:
+            blocks[-1][1].append(line)
+    return [(i + 1, " ".join(b)) for i, b in blocks if b]
+
+
+def check_card_refs(card: Card, claims: dict[str, Claim], archived: set[str]) -> list[Issue]:
+    """Ссылки карточки на утверждения и выводы без них (references/store.md, «Запись», шаг 3).
+
+    Карточка — что известно сейчас: ссылка на заменённое или опровергнутое значит, что вывод
+    не переписали после обновления утверждений.
+    """
+    rel = f"topics/{card.path.name}"
+    lines = card_lines(read(card.path))
+    issues: list[Issue] = []
+    for n, line in enumerate(lines, 1):
+        for cid in dict.fromkeys(CLAIM_REF_RE.findall(line)):
+            claim = claims.get(cid)
+            if claim is None:
+                where = ("в архиве — агент туда не смотрит" if cid in archived
+                         else "такого утверждения нет")
+                issues.append(Issue(rel, "card-claim-ref", f"строка {n}: {cid} — {where}"))
+            elif claim.status.startswith("superseded→"):
+                target = claim.status.partition("→")[2]
+                issues.append(Issue(rel, "card-claim-ref",
+                                    f"строка {n}: {cid} заменено на {target} — переписать вывод "
+                                    f"по {target}"))
+            elif claim.status == "retracted":
+                issues.append(Issue(rel, "card-claim-ref",
+                                    f"строка {n}: {cid} опровергнуто — вывод пересмотреть"))
+    for head, start, stop in h2_sections(lines):
+        if not head.startswith("Ответ на"):
+            continue
+        bare = [n for n, text in answer_blocks(lines, start, stop)
+                if not CLAIM_REF_RE.search(text)]
+        if bare:
+            issues.append(Issue(rel, "card-answer-ref",
+                                f"«{head}», строки {lines_list(bare)}: вывод без ссылки на C-… — "
+                                "сослаться на утверждение или перенести в «Открытые вопросы»",
+                                warn=True))
     return issues
 
 
@@ -1276,7 +1370,7 @@ def check_claims(path: Path, rel: str, slug: str, today: date) -> tuple[list[Iss
         for problem in problems:
             issues.append(Issue(rel, "claim-format", f"{where} {cid}: {problem}"))
         claims.append(Claim(cid, [s.strip() for s in sources.split(";") if s.strip()],
-                            fresh_date, status))
+                            fresh_date, status, subject=subject, checked=valid_date(checked)))
         if status == "live" and fresh_date is not None and fresh_date < today:
             issues.append(Issue(rel, "claim-expired",
                                 f"{cid}: свежесть {fresh} прошла — перепроверить или пометить "
@@ -1386,8 +1480,12 @@ def check_store(store: Path, today: date | None = None) -> list[Issue]:
     for path in sorted((store / "claims").glob("*.md")):
         found, claims[path.stem] = check_claims(path, f"claims/{path.name}", path.stem, today)
         issues += found
+    by_id = {c.id: c for rows in claims.values() for c in rows}
+    archived = {cid for path in sorted((store / "archive" / "claims").glob("*.md"))
+                for cid in re.findall(rf"(?m)^\| (C-{SLUG}-\d{{3}})", read(path))}
     for card in cards:
-        issues += check_card(card, claims.get(card.path.stem))
+        issues += check_card(card, claims.get(card.path.stem), today)
+        issues += check_card_refs(card, by_id, archived)
 
     found, sources = check_sources(store)
     issues += found
@@ -1425,22 +1523,108 @@ def check_store(store: Path, today: date | None = None) -> list[Issue]:
     return issues
 
 
-def run_lint(run: Path | None, store: Path | None) -> int:
+def load_claims(store: Path, today: date) -> dict[str, list[Claim]]:
+    """Утверждения хранилища по темам; ошибки формата здесь не нужны — их даёт check_store."""
+    return {p.stem: check_claims(p, p.name, p.stem, today)[1]
+            for p in sorted((store / "claims").glob("*.md"))}
+
+
+def run_topic(run: Path) -> tuple[str, date] | None:
+    """Тема и дата прогона из брифа: store_topic (или slug из id) и дата из id."""
+    path = run / "brief.md"
+    fields = frontmatter(read(path)) if path.is_file() else None
+    values = {k: scalar(v) for k, v in (fields or {}).items()}
+    m = RUN_ID_RE.fullmatch(values.get("id", ""))
+    day = valid_date(m.group(1)) if m else None
+    if m is None or day is None:
+        return None
+    return values.get("store_topic") or m.group(2), day
+
+
+def claim_dates(claims: list[Claim]) -> str:
+    shown = ", ".join(f"{c.id} ({c.checked or '?'})" for c in claims[:5])
+    return shown + (f" … (всего {len(claims)})" if len(claims) > 5 else "")
+
+
+def check_subjects(run: Path, store: Path, also: list[Path], today: date | None = None
+                   ) -> list[Issue]:
+    """Сверка того, что обновил прогон, с прежними живыми утверждениями (references/store.md,
+    «Запись», шаг 4).
+
+    Прогон тронул предмет, если у живого утверждения его темы `проверено` не раньше даты
+    прогона. Прежние живые утверждения о том же предмете — в своей теме, в других темах
+    хранилища и в хранилищах `also` — могли устареть или разойтись с новым. Сверка привязана к
+    прогону: без него новое не отличить от перепроверенного, и предупреждение висело бы вечно.
+    """
+    today = today or date.today()
+    found = run_topic(run)
+    if found is None:
+        return []
+    topic, day = found
+    claims = load_claims(store, today)
+    touched: dict[str, list[Claim]] = {}
+    for c in claims.get(topic, []):
+        if c.status == "live" and c.key and c.checked is not None and c.checked >= day:
+            touched.setdefault(c.key, []).append(c)
+    issues: list[Issue] = []
+
+    def compare(where: str, slug: str, rows: list[Claim]) -> None:
+        old: dict[str, list[Claim]] = {}
+        for c in rows:
+            if (c.status == "live" and c.key in touched
+                    and (c.checked is None or c.checked < day)):
+                old.setdefault(c.key, []).append(c)
+        for key, stale in old.items():
+            new = ", ".join(c.id for c in touched[key][:5])
+            if slug == topic and where == "":
+                issues.append(Issue(f"claims/{slug}.md", "claim-subject",
+                                    f"«{stale[0].subject}»: {claim_dates(stale)} — прогон обновил "
+                                    f"предмет ({new}): заменить (superseded→…), перепроверить "
+                                    "или оставить как независимое", warn=True))
+            else:
+                issues.append(Issue(f"{where}claims/{slug}.md", "claim-subject-shared",
+                                    f"«{stale[0].subject}»: {claim_dates(stale)} — предмет обновлён "
+                                    f"в теме {topic} ({new}): сверить; расходится — перепроверить "
+                                    "или пометить stale", warn=True))
+
+    for slug, rows in claims.items():
+        compare("", slug, rows)
+    for other in also:
+        where = other.as_posix().rstrip("/") + "/"
+        twin = other / "topics" / f"{topic}.md"
+        if twin.is_file() and not Card(twin, frontmatter(read(twin))).archived:
+            issues.append(Issue(f"{where}topics/{topic}.md", "topic-twin",
+                                "та же тема в другом хранилище — сверить выводы и даты "
+                                "проверки; расхождение разрешить или вынести в открытые "
+                                "вопросы", warn=True))
+        for slug, rows in load_claims(other, today).items():
+            compare(where, slug, rows)
+    return issues
+
+
+def run_lint(run: Path | None, store: Path | None, also: list[Path] | None = None) -> int:
+    also = also or []
     if run is None and store is None:
         print("lint: нужен --run <папка прогона> и/или --store <хранилище>", file=sys.stderr)
+        return 2
+    if also and (run is None or store is None):
+        print("lint: --also сверяет тему прогона — нужны и --run, и --store", file=sys.stderr)
         return 2
     if run is not None and not run.is_dir():
         print(f"lint: папки прогона нет: {run}", file=sys.stderr)
         return 2
-    if store is not None and not (store / "INDEX.md").is_file():
-        print(f"lint: хранилища нет (нет INDEX.md): {store} — deep_search.py init <путь>",
-              file=sys.stderr)
-        return 2
+    for path in ([store] if store is not None else []) + also:
+        if not (path / "INDEX.md").is_file():
+            print(f"lint: хранилища нет (нет INDEX.md): {path} — deep_search.py init <путь>",
+                  file=sys.stderr)
+            return 2
     issues: list[Issue] = []
     if run is not None:
         issues += check_run(run)
     if store is not None:
         issues += check_store(store)
+    if run is not None and store is not None:
+        issues += check_subjects(run, store, also)
     errors = sum(not i.warn for i in issues)
     summary = f"lint: нарушений {errors}, предупреждений {len(issues) - errors}"
     print(bounded_report(issues, summary))
@@ -3131,13 +3315,39 @@ def merge_groups(entries: list[Entry]) -> list[list[Entry]]:
     return list(groups.values())
 
 
+def topic_names(library: Path) -> dict[str, list[re.Pattern]]:
+    """Имена тем библиотеки для пометки новостей: `aliases` карточки и имена из «Объекты».
+
+    Архивные темы не берутся: агент в архив не смотрит. Имя ищется целым словом без учёта
+    регистра.
+    """
+    names: dict[str, list[re.Pattern]] = {}
+    for card in load_cards(library):
+        if card.fields is None or card.archived:
+            continue
+        found = flat_list(card.fields.get("aliases", ""))
+        lines = card_lines(read(card.path))
+        span = section(lines, "Объекты")
+        if span is not None:
+            for line in lines[span[0] + 1:span[1]]:
+                cells = table_cells(line)
+                if cells and not is_separator(cells) and cells[0] != "имя":
+                    found.append(cells[0])
+        words = {w.strip().casefold() for w in found}
+        names[card.slug] = [re.compile(rf"(?<!\w){re.escape(w)}(?!\w)") for w in sorted(words)
+                            if len(w) >= TOPIC_NAME_MIN_CHARS]
+    return {slug: pats for slug, pats in names.items() if pats}
+
+
 def make_record(group: list[Entry], feeds: dict[str, dict], order: dict[str, int],
-                interests: dict[str, list[str]], now: datetime) -> dict | None:
-    """Запись склейки или None, если фильтр интересов её не пропустил.
+                interests: dict[str, list[str]], now: datetime,
+                topics: dict[str, list[re.Pattern]] | None = None) -> dict | None:
+    """Запись склейки или None, если ни интересы, ни темы библиотеки её не пропустили.
 
     Ссылка и дата — у самой ранней записи первоисточника (`labs`, `releases`), иначе у самой
     ранней вообще; `first_feed` — лента самой ранней записи. Запись без даты — как опрошенная
-    сейчас.
+    сейчас. Новость о предмете темы проходит фильтр и без слов интересов: она может сделать
+    тему устаревшей.
     """
     group = sorted(group, key=lambda e: (e.when or now, order[e.feed]))
     primary = [e for e in group if feeds[e.feed]["group"] in PRIMARY_GROUPS]
@@ -3145,7 +3355,8 @@ def make_record(group: list[Entry], feeds: dict[str, dict], order: dict[str, int
     ids = list(dict.fromkeys(e.feed for e in group))
     text = " ".join(f"{e.title} {e.excerpt}" for e in group).casefold()
     matched = [g for g, words in interests.items() if any(w.casefold() in text for w in words)]
-    if not matched and all(feeds[f]["filter"] != "always" for f in ids):
+    hit = [slug for slug, pats in (topics or {}).items() if any(p.search(text) for p in pats)]
+    if not matched and not hit and all(feeds[f]["filter"] != "always" for f in ids):
         return None
     when = (rep.when or now).astimezone(now.tzinfo)
     record = {
@@ -3158,6 +3369,7 @@ def make_record(group: list[Entry], feeds: dict[str, dict], order: dict[str, int
         "feeds": ids,
         "first_feed": group[0].feed,
         "interests": matched,
+        "topics": hit,
         "excerpt": rep.excerpt or next((e.excerpt for e in group if e.excerpt), ""),
         "trial": all(feeds[f].get("trial") is True for f in ids),
     }
@@ -3222,8 +3434,10 @@ def watch(skill: Path, library: Path, fetch: FeedFetch = feed_fetch, now: dateti
 
     by_id = {f["id"]: f for f in feeds}
     order = {f["id"]: n for n, f in enumerate(feeds)}
+    topics = topic_names(library)
     records = [r for g in merge_groups(fresh)
-               if (r := make_record(g, by_id, order, feed_set.interests, now)) is not None]
+               if (r := make_record(g, by_id, order, feed_set.interests, now, topics))
+               is not None]
     sort_records(records)
 
     stamp = now.astimezone(timezone.utc).isoformat(timespec="seconds")
@@ -3290,6 +3504,8 @@ def record_line(record: dict) -> str:
         line += f"  ×{len(record['feeds'])}"
     if record["interests"]:
         line += "  " + ",".join(record["interests"])
+    if record["topics"]:
+        line += "  тема: " + ",".join(record["topics"])
     if record["trial"]:
         line += "  на пробу"
     return line
@@ -4192,6 +4408,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("lint", help="бриф, прогон, хранилище")
     p.add_argument("--run", metavar="папка", type=Path, help="папка прогона")
     p.add_argument("--store", metavar="путь", type=Path, help="хранилище")
+    p.add_argument("--also", metavar="путь", type=Path, action="append", default=[],
+                   help="другое хранилище: сверить с ним тему прогона (нужны --run и --store)")
 
     p = sub.add_parser("index", help="собрать INDEX.md из карточек")
     p.add_argument("path", metavar="путь", type=Path)
@@ -4246,7 +4464,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "index":
         return run_index(args.path)
     if args.command == "lint":
-        return run_lint(args.run, args.store)
+        return run_lint(args.run, args.store, args.also)
     if args.command == "doctor":
         return run_doctor(args.json)
     if args.command == "watch":

@@ -380,6 +380,132 @@ class StoreWarningsTest(StoreCase):
         self.assertEqual(self.rules(self.lint().stdout), set())
 
 
+class CardConsistencyTest(StoreCase):
+    """Карточка против утверждений: ссылки, выводы без ссылок, статус."""
+
+    def answer(self, text: str) -> None:
+        self.edit(f"topics/{SLUG}.md", "## Объекты", text + "\n\n## Объекты")
+
+    def test_live_ref_is_clean(self):
+        self.answer("- С версии 3 проект X под AGPL (C-log-search-003),\n"
+                    "  формат описан в спецификации — C-log-search-002.")
+        self.assertEqual(self.rules(self.lint().stdout), set())
+
+    def test_superseded_ref(self):
+        self.answer("- Проект X под Apache 2.0 (C-log-search-001).")
+        out = self.assert_only("card-claim-ref")
+        self.assertIn("C-log-search-001 заменено на C-log-search-003", out)
+
+    def test_retracted_ref(self):
+        self.edit(f"claims/{SLUG}.md", "V0 | live |", "V0 | retracted |")
+        self.answer("- Формат описан в спецификации (C-log-search-002).")
+        self.assertIn("опровергнуто", self.assert_only("card-claim-ref"))
+
+    def test_unknown_and_archived_ref(self):
+        self.answer("- Вывод (C-log-search-099).\n- Старое (C-old-logs-001).")
+        out = self.assert_only("card-claim-ref")
+        self.assertIn("C-log-search-099 — такого утверждения нет", out)
+        self.assertIn("C-old-logs-001 — в архиве", out)
+
+    def test_answer_without_ref(self):
+        self.answer("- С версии 3 проект X под AGPL (C-log-search-003).\n\n"
+                    "Проект X лучше всех.\n\n### Подробнее\n\n| a | b |\n|---|---|")
+        out = self.assert_only("card-answer-ref", code=0)
+        self.assertIn("строки 24", out)
+
+    def test_refs_in_comments_are_ignored(self):
+        self.answer("<!-- раньше было C-log-search-001 -->")
+        self.assertEqual(self.rules(self.lint().stdout), set())
+
+    def test_live_card_without_live_claims(self):
+        self.edit(f"claims/{SLUG}.md", "V0 | live |", "V0 | stale |")
+        self.edit(f"claims/{SLUG}.md", "V2→2999-01-03 | live |", "V2→2999-01-03 | stale |")
+        self.assertIn("живых утверждений нет", self.assert_only("card-status"))
+
+    def test_live_card_with_all_expired(self):
+        self.edit(f"claims/{SLUG}.md", "| V0 | live |", "| V1→2000-01-01 | live |")
+        self.edit(f"claims/{SLUG}.md", "V2→2999-01-03", "V2→2000-01-03")
+        self.edit(f"topics/{SLUG}.md", "expires: 2999-01-03", "expires: 2000-01-01")
+        self.index()
+        res = self.lint()
+        self.assertEqual(res.returncode, 0, res.stdout)
+        self.assertEqual(self.rules(res.stdout), {"card-status", "claim-expired"}, res.stdout)
+
+    def test_stale_card_with_fresh_claims(self):
+        self.edit(f"topics/{SLUG}.md", "status: live", "status: stale")
+        self.index()
+        self.assertIn("вернуть status: live", self.assert_only("card-status", code=0))
+
+
+class SubjectTest(StoreCase):
+    """lint --store --run: что обновил прогон, сверяется с прежними утверждениями о том же
+    предмете — в своей теме, в других темах и в другом хранилище (--also)."""
+
+    def lint_run(self, *extra: str):
+        return self.lint("--run", str(self.store / "runs" / RUN_ID), *extra)
+
+    def other_topic(self, store: Path, subject: str, checked: str) -> None:
+        values = {**CARD, "topic": "log-storage", "expires": "—"}
+        write(store / "topics/log-storage.md", fill(skill_text("templates/topic.md"), values))
+        write(store / "claims/log-storage.md", CLAIMS_HEAD
+              + f"| C-log-storage-001 | B2 | X хранит журналы в колонках | {subject} | S-7b1c04aa "
+              f"| «columnar storage» | {checked} | V0 | live |\n")
+
+    def test_older_claim_in_same_topic(self):
+        self.edit(f"claims/{SLUG}.md", "| 2026-10-05 | V0 |", "| 2026-09-01 | V0 |")
+        res = self.lint_run()
+        self.assertEqual(res.returncode, 0, res.stdout)
+        self.assertEqual(self.rules(res.stdout), {"claim-subject"}, res.stdout)
+        self.assertIn("C-log-search-002 (2026-09-01) — прогон обновил предмет (C-log-search-003)",
+                      res.stdout)
+        # Без прогона новое не отличить от перепроверенного — молчит.
+        self.assertEqual(self.rules(self.lint().stdout), set())
+
+    def test_other_topic_same_subject(self):
+        self.other_topic(self.store, " Project-X ", "2026-09-01")
+        self.index()
+        res = self.lint_run()
+        self.assertEqual(self.rules(res.stdout), {"claim-subject-shared"}, res.stdout)
+        self.assertIn("claims/log-storage.md: claim-subject-shared: «Project-X»", res.stdout)
+        self.assertIn("в теме log-search", res.stdout)
+
+    def test_other_topic_checked_after_run_is_quiet(self):
+        self.other_topic(self.store, "project-x", "2026-10-06")
+        self.index()
+        self.assertEqual(self.rules(self.lint_run().stdout), set())
+
+    def test_other_subject_is_quiet(self):
+        self.other_topic(self.store, "project-y", "2026-09-01")
+        self.index()
+        self.assertEqual(self.rules(self.lint_run().stdout), set())
+
+    def test_also_store(self):
+        other = make_store(self.base / "project")
+        res = self.lint_run("--also", str(other))
+        self.assertEqual(res.returncode, 0, res.stdout)
+        self.assertEqual(self.rules(res.stdout), {"topic-twin"}, res.stdout)
+        self.assertIn(f"{other.as_posix()}/topics/{SLUG}.md: topic-twin", res.stdout)
+        text = (other / f"claims/{SLUG}.md").read_text(encoding="utf-8")
+        write(other / f"claims/{SLUG}.md", text.replace("| 2026-10-05 | V0 |",
+                                                        "| 2026-09-01 | V0 |"))
+        out = self.lint_run("--also", str(other)).stdout
+        self.assertEqual(self.rules(out), {"topic-twin", "claim-subject-shared"}, out)
+
+    def test_also_archived_twin_is_quiet(self):
+        other = make_store(self.base / "project")
+        text = (other / f"topics/{SLUG}.md").read_text(encoding="utf-8")
+        write(other / f"topics/{SLUG}.md", text.replace("status: live", "status: archived"))
+        self.assertEqual(self.rules(self.lint_run("--also", str(other)).stdout), set())
+
+    def test_also_needs_run_and_store(self):
+        res = self.lint("--also", str(self.store))
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("--run", res.stderr)
+        res = self.lint_run("--also", str(self.base / "home"))
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("нет INDEX.md", res.stderr)
+
+
 class WatchLintTest(StoreCase):
     """watch/ библиотеки: lint --store ловит порчу и ничего не переименовывает."""
 
