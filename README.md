@@ -31,9 +31,12 @@ deep-search задаёт порядок работы в три части:
 
 ```bash
 # 1. скилл: рабочая копия и ссылки из папок скиллов агентов — правка в репозитории действует сразу
+#    (путь рабочей копии — от ~ или от /; -n: при повторе ln сообщит «File exists», а не создаст
+#    ссылку внутри старой)
+mkdir -p ~/.agents/skills ~/.claude/skills
 git clone <url> <рабочая копия>
-ln -s <рабочая копия> ~/.agents/skills/deep-search
-ln -s ../../.agents/skills/deep-search ~/.claude/skills/deep-search
+ln -sn <рабочая копия> ~/.agents/skills/deep-search
+ln -sn ../../.agents/skills/deep-search ~/.claude/skills/deep-search
 
 # 2. библиотека — общее хранилище найденного, отдельный git-репозиторий
 #    (библиотека уже есть — init досоздаст в ней только watch/ для мониторинга)
@@ -48,15 +51,22 @@ export DEEP_SEARCH_LIBRARY="$HOME/research-library"
 export GITHUB_TOKEN=<токен>
 ```
 
-В настройках Claude Code (`~/.claude/settings.json`) — путь библиотеки для агента, доступ к её
-папке и веб-инструменты без подтверждения каждого вызова (фоновые ветки иначе встают на вопросе):
+В настройках Claude Code (`~/.claude/settings.json`; если файл уже есть — ключи добавить к
+имеющимся) — путь библиотеки для агента, доступ к её папке и веб-инструменты без подтверждения
+каждого вызова (фоновые ветки иначе встают на вопросе). `pandoc` и `pdftotext` достают текст
+страниц и PDF, скрипт ветки зовут за `facts`, ведущий — за `doctor`, `lint`, `index`.
+`Bash(python3:*)` не добавлять: это разрешение на любой код. Совпадёт ли правило на скрипт, если
+агент напишет путь через `~`, ещё не проверено:
 
 ```json
 {
   "env": {"DEEP_SEARCH_LIBRARY": "/home/<пользователь>/research-library"},
   "permissions": {
     "additionalDirectories": ["/home/<пользователь>/research-library"],
-    "allow": ["WebSearch", "WebFetch", "Bash(curl:*)"]
+    "allow": [
+      "WebSearch", "WebFetch", "Bash(curl:*)", "Bash(pandoc:*)", "Bash(pdftotext:*)",
+      "Bash(python3 /home/<пользователь>/.agents/skills/deep-search/deep_search.py:*)"
+    ]
   }
 }
 ```
