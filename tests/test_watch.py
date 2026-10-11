@@ -256,6 +256,17 @@ class ParseTest(WatchCase):
         self.assertNotIn("ignore previous", first.excerpt)
         self.assertNotIn("‮", first.excerpt)
 
+    def test_rss_without_title(self):
+        # Так отдаёт RSS профиля Bluesky: у записи нет <title>, только текст поста.
+        body = ("<rss version='2.0'><channel><item>"
+                "<link>https://bsky.app/profile/lab.example/post/3mw4</link>"
+                "<description>Claude Opus 5.5 is available today.\nMore in the thread."
+                "</description><pubDate>22 Sep 2026 16:31 +0000</pubDate>"
+                "</item></channel></rss>").encode()
+        entry, = self.poll(body)
+        self.assertEqual(entry.title, "Claude Opus 5.5 is available today.")
+        self.assertEqual(entry.when, datetime(2026, 9, 22, 16, 31, tzinfo=timezone.utc))
+
     def test_atom(self):
         agents, release = self.poll(fixture("atom.xml"))
         self.assertEqual(agents.url, "https://lab.example/engineering/agents")

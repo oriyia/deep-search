@@ -2638,10 +2638,11 @@ def read_rss(poll: FeedPoll) -> list[Entry]:
         for item in children(root, "entry"):
             published = child_text(item, "published")
             stamp = published or child_text(item, "updated")
+            excerpt = child_text(item, "summary", "content")
             entries.append(make_entry(
-                fid, child_text(item, "title"), atom_link(item), child_text(item, "id"),
-                entry_date(stamp, poll.now), "published" if published else "modified",
-                child_text(item, "summary", "content")))
+                fid, text_title(child_text(item, "title"), excerpt), atom_link(item),
+                child_text(item, "id"), entry_date(stamp, poll.now),
+                "published" if published else "modified", excerpt))
         return [e for e in entries if e.key]
     if kind == "rss":
         channel = next(iter(children(root, "channel")), None)
@@ -2659,11 +2660,23 @@ def read_rss(poll: FeedPoll) -> list[Entry]:
         if not link and guid and guid_el is not None \
                 and guid_el.get("isPermaLink", "true") != "false":
             link = guid if re.match(r"(?i)https?://", guid) else ""
+        excerpt = child_text(item, "description", "encoded")
         entries.append(make_entry(
-            fid, child_text(item, "title"), link, guid,
-            entry_date(child_text(item, "pubDate", "date"), poll.now), "published",
-            child_text(item, "description", "encoded")))
+            fid, text_title(child_text(item, "title"), excerpt), link, guid,
+            entry_date(child_text(item, "pubDate", "date"), poll.now), "published", excerpt))
     return [e for e in entries if e.key]
+
+
+def text_title(title: str, excerpt: str) -> str:
+    """Заголовок записи; без него — первая строка текста, как у поста Telegram.
+
+    У RSS профиля Bluesky `<title>` нет вовсе: без заголовка запись не проходит ни фильтр
+    интересов, ни склейку дублей по заголовку.
+    """
+    if plain_text(title, TITLE_MAX_CHARS):
+        return title
+    line = next((line for line in excerpt.splitlines() if line.strip()), "")
+    return plain_text(line, TELEGRAM_TITLE_CHARS)
 
 
 def make_entry(fid: str, title: str, link: str, guid: str, when: datetime | None, kind: str,
